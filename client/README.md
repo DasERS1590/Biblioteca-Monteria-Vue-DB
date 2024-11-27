@@ -1,9 +1,7 @@
+# React + Vite
 
-
-### Run react app 
-
-### Install 
-npm install --save-dev vite
-npm install @vitejs/plugin-react --save-dev
-
+cd client
+npm install
+npm run dev
+npm install react-router-dom
 
