@@ -4,6 +4,11 @@ import (
     "net/http"
 )
 
+
+func (app *application) loginHandler(w http.ResponseWriter , r *http.Request){
+
+}
+
 func (app *application) registerUserHandler(w http.ResponseWriter , r *http.Request){
 
 }

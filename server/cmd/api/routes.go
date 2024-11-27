@@ -14,7 +14,7 @@ func (app *application) routes() *http.ServeMux {
     mux.HandleFunc("GET /api/editorials", app.checkEditorial ) 
     mux.HandleFunc("POST /api/editorials", app.createEditorial )
 
-
+    
     mux.HandleFunc("POST /api/admin/users", app.registerUserHandler)
     mux.HandleFunc("PUT /api/admin/users/{id}" , app.updateUserHandler)
     mux.HandleFunc("GET /api/admin/users", app.getUserHandler)
@@ -40,6 +40,8 @@ func (app *application) routes() *http.ServeMux {
     mux.HandleFunc("POST /api/reservations", app.createReservationHandler)
     mux.HandleFunc("GET /api/reservations", app.getReservationHandler)
     mux.HandleFunc("PUT /api/reservations/{id}", app. updateReservationHandler)
-    
+        
+    mux.HandleFunc("POST /api/login", app.loginHandler)
+
     return mux 
 }
