@@ -9,6 +9,8 @@ const Login = () => {
   const handleSubmit = (e) => {
     e.preventDefault();
     console.log("Form submitted with:", { email, password });
+
+    role === "admin" ? navigate("/admin/dashboard") : navigate("/user/dashboard");
   };
 
   return (
