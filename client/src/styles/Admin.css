@@ -1,0 +1,66 @@
+
+/* Admin.css */
+
+.admin-layout {
+  display: flex;
+}
+
+.admin-dashboard h1,
+.admin-items h1,
+.admin-settings h1 {
+  font-size: 24px;
+  color: #333;
+}
+
+.admin-items .add-item-btn {
+  margin-bottom: 10px;
+  background-color: #28a745;
+}
+
+.admin-items table .action-btn {
+  background-color: #6c757d;
+  color: white;
+}
+
+.settings-tabs {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 15px;
+}
+
+.settings-tabs .tab {
+  padding: 10px;
+  cursor: pointer;
+  background-color: #e9ecef;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.settings-tabs .tab.active {
+  background-color: #007bff;
+  color: white;
+  border-color: #0056b3;
+}
+
+.settings-form label {
+  display: block;
+  margin: 10px 0 5px;
+}
+
+.settings-form input {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  margin-bottom: 15px;
+}
+
+.save-btn {
+  background-color: #007bff;
+}
+
+.cancel-btn {
+  background-color: #6c757d;
+  margin-left: 10px;
+}
+
