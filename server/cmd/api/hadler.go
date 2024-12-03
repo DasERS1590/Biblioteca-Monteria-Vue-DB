@@ -332,6 +332,7 @@ func (app *application) getUserFinesHandler(w http.ResponseWriter, r *http.Reque
 	}
 }
 
+
 func (app *application) getActiveReservationsHandler(w http.ResponseWriter, r *http.Request) {
 	// Lógica para obtener reservas activas por usuario o libro
 }
