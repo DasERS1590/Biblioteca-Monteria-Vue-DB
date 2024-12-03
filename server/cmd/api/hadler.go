@@ -242,7 +242,44 @@ func (app *application) getActiveLoansHandler(w http.ResponseWriter, r *http.Req
 }
 
 func (app *application) getPendingFinesHandler(w http.ResponseWriter, r *http.Request) {
-	// Lógica para obtener multas pendientes de pago
+
+	query := `
+		SELECT idmulta, idprestamo, saldopagar, fechamulta, estado
+		FROM multa
+		WHERE estado = 'pendiente'
+	`
+	rows, err := app.db.Query(query)
+	if err != nil {
+		http.Error(w, "Error al obtener multas pendientes", http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	type PendingFines struct {
+		IDMulta     int     `json:"idmulta"`
+		IDPrestamo  int     `json:"idprestamo"`
+		SaldoPagar  float64 `json:"saldopagar"`
+		FechaMulta  string  `json:"fechamulta"`
+		Estado      string  `json:"estado"`
+	}
+
+	pendingFines := make([]PendingFines , 0)
+
+	for rows.Next() {
+		var fine PendingFines
+		err := rows.Scan(&fine.IDMulta, &fine.IDPrestamo, &fine.SaldoPagar, &fine.FechaMulta, &fine.Estado)
+		if err != nil {
+			http.Error(w, "Error al leer los resultados de la base de datos", http.StatusInternalServerError)
+			return
+		}
+		pendingFines = append(pendingFines, fine)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	err = json.NewEncoder(w).Encode(pendingFines)
+	if err != nil {
+		http.Error(w, "Error al codificar la respuesta", http.StatusInternalServerError)
+	}
 }
 
 func (app *application) getUserFinesHandler(w http.ResponseWriter, r *http.Request) {
