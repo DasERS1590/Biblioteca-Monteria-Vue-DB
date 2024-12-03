@@ -283,8 +283,55 @@ func (app *application) getPendingFinesHandler(w http.ResponseWriter, r *http.Re
 }
 
 func (app *application) getUserFinesHandler(w http.ResponseWriter, r *http.Request) {
-	// Lógica para obtener el historial completo de multas por usuario
+
+	idsocio := r.URL.Query().Get("idsocio")
+	if idsocio == "" {
+		http.Error(w, "El parámetro 'idsocio' es requerido", http.StatusBadRequest)
+		return
+	}
+
+	query := `
+		SELECT m.idmulta, m.idprestamo, m.saldopagar, m.fechamulta, m.estado
+		FROM multa m
+		INNER JOIN 
+			prestamo p ON m.idprestamo = p.idprestamo
+		WHERE p.idsocio = ?
+		ORDER BY m.fechamulta DESC
+	`
+	rows, err := app.db.Query(query, idsocio)
+	if err != nil {
+		http.Error(w, "Error al obtener el historial de multas", http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	type Fines struct {
+		IDMulta     int     `json:"idmulta"`
+		IDPrestamo  int     `json:"idprestamo"`
+		SaldoPagar  float64 `json:"saldopagar"`
+		FechaMulta  string  `json:"fechamulta"`
+		Estado      string  `json:"estado"`
+	}
+
+	fines := make([]Fines , 0)
+
+	for rows.Next() {
+		var fine Fines
+		err := rows.Scan(&fine.IDMulta, &fine.IDPrestamo, &fine.SaldoPagar, &fine.FechaMulta, &fine.Estado)
+		if err != nil {
+			http.Error(w, "Error al leer los resultados de la base de datos", http.StatusInternalServerError)
+			return
+		}
+		fines = append(fines, fine)
+	}
+	
+	w.Header().Set("Content-Type", "application/json")
+	err = json.NewEncoder(w).Encode(fines)
+	if err != nil {
+		http.Error(w, "Error al codificar la respuesta", http.StatusInternalServerError)
+	}
 }
+
 
 func (app *application) getActiveReservationsHandler(w http.ResponseWriter, r *http.Request) {
 	// Lógica para obtener reservas activas por usuario o libro

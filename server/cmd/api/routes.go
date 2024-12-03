@@ -13,9 +13,7 @@ func (app *application) routes() *http.ServeMux {
 	mux.HandleFunc("GET /api/admin/users", app.getUsersByTypeHandler) 
 	mux.HandleFunc("GET /api/admin/loans", app.getActiveLoansHandler) 
 	mux.HandleFunc("GET /api/admin/fines/to", app.getPendingFinesHandler) 
-
-	// 6. Historial completo de multas por usuario
-	mux.HandleFunc("GET /api/admin/fines", app.getUserFinesHandler) // GET
+	mux.HandleFunc("GET /api/admin/fines", app.getUserFinesHandler)
 
 	// 7. Reservas activas por usuario o libro
 	mux.HandleFunc("GET /api/admin/reservations", app.getActiveReservationsHandler) // GET
