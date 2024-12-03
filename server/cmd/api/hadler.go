@@ -191,6 +191,7 @@ func (app *application) getUsersByTypeHandler(w http.ResponseWriter, r *http.Req
 
 func (app *application) getActiveLoansHandler(w http.ResponseWriter, r *http.Request) {
 	// Lógica para obtener préstamos activos por usuario y rango de fechas
+	// 4. Préstamos activos por usuario y rango de fechas
 }
 
 func (app *application) getPendingFinesHandler(w http.ResponseWriter, r *http.Request) {
