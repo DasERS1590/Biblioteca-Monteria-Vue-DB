@@ -8,13 +8,9 @@ func (app *application) routes() *http.ServeMux {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("/", app.home)
-	mux.HandleFunc("GET /api/admin/books", app.getFilteredBooksHandler) // GET
-
-	// 2. Libros no disponibles
-	mux.HandleFunc("GET /api/admin/books/unavailable", app.getUnavailableBooksHandler) // GET
-
-	// 3. Usuarios por tipo de socio
-	mux.HandleFunc("GET /api/admin/users", app.getUsersByTypeHandler) // GET
+	mux.HandleFunc("GET /api/admin/books", app.getFilteredBooksHandler) 
+	mux.HandleFunc("GET /api/admin/books/unavailable", app.getUnavailableBooksHandler)
+	mux.HandleFunc("GET /api/admin/users", app.getUsersByTypeHandler) 
 
 	// 4. Préstamos activos por usuario y rango de fechas
 	mux.HandleFunc("GET /api/admin/loans", app.getActiveLoansHandler) // GET

@@ -87,7 +87,7 @@ func (app *application) getUnavailableBooksHandler(w http.ResponseWriter, r *htt
 		http.Error(w, "Error ejecutando consulta", http.StatusInternalServerError)
 		return
 	}
-	
+
 	type Book struct {
 		ID     int    `json:"id"`
 		Title  string `json:"title"`
@@ -96,7 +96,6 @@ func (app *application) getUnavailableBooksHandler(w http.ResponseWriter, r *htt
 	}
 
 	books := make([]Book, 0)
-
 
 	for rows.Next() {
 		var book Book
@@ -114,13 +113,80 @@ func (app *application) getUnavailableBooksHandler(w http.ResponseWriter, r *htt
 
 	w.Header().Set("Content-Type", "application/json")
 	if len(books) == 0 {
-		w.WriteHeader(http.StatusNotFound) 
+		w.WriteHeader(http.StatusNotFound)
 	}
 	json.NewEncoder(w).Encode(books)
 }
 
 func (app *application) getUsersByTypeHandler(w http.ResponseWriter, r *http.Request) {
-	// Lógica para obtener usuarios filtrados por tipo de socio
+	userType := r.URL.Query().Get("tiposocio")
+
+	if userType == "" {
+		http.Error(w, "tipo de socio es requerido", http.StatusBadRequest)
+		return
+	}
+
+	validUserTypes := map[string]bool{
+		"normal":     true,
+		"estudiante": true,
+		"profesor":   true,
+	}
+	if !validUserTypes[userType] {
+		http.Error(w, "tipo de socio no válido", http.StatusBadRequest)
+		return
+	}
+
+	query := `
+		SELECT 
+			idsocio, nombre, direccion, telefono, correo, fechanacimiento, tiposocio, fecharegistro, imagenperfil, rol 
+		FROM socio 
+		WHERE tiposocio = ?`
+
+	rows, err := app.db.Query(query, userType)
+
+	if err != nil {
+		http.Error(w, "error al obtener los usuarios", http.StatusInternalServerError)
+		return
+	}
+
+	defer rows.Close();
+
+	type User struct {
+		ID            int    `json:"id"`
+		Nombre        string `json:"nombre"`
+		Direccion     string `json:"direccion"`
+		Telefono      string `json:"telefono"`
+		Correo        string `json:"correo"`
+		FechaNacimiento string `json:"fechanacimiento"`
+		TipoSocio     string `json:"tiposocio"`
+		FechaRegistro string `json:"fecharegistro"`
+		ImagenPerfil  string `json:"imagenperfil"`
+		Rol           string `json:"rol"`
+	}
+
+	users := make([]User ,0)
+
+	for rows.Next() {
+		var user User
+		err := rows.Scan(&user.ID, &user.Nombre, &user.Direccion, &user.Telefono, &user.Correo, &user.FechaNacimiento, &user.TipoSocio, &user.FechaRegistro, &user.ImagenPerfil, &user.Rol)
+		if err != nil {
+			http.Error(w, "error al leer los resultados", http.StatusInternalServerError)
+			return
+		}
+		users = append(users, user)
+	}
+
+	if err := rows.Err(); err != nil {
+		http.Error(w, "Error durante la iteración de filas", http.StatusInternalServerError)
+		return
+	}
+
+	// Responder con los usuarios encontrados
+	w.Header().Set("Content-Type", "application/json")
+	err = json.NewEncoder(w).Encode(users)
+	if err != nil {
+		http.Error(w, "error al codificar la respuesta", http.StatusInternalServerError)
+	}
 }
 
 func (app *application) getActiveLoansHandler(w http.ResponseWriter, r *http.Request) {
