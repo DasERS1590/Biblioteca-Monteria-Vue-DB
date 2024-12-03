@@ -18,7 +18,7 @@ type config struct {
 
 type application struct {
     config config
-   // db     *sql.DB
+    db     *sql.DB
 }
 
 func main() {
@@ -38,7 +38,7 @@ func main() {
 
     app := &application{
         config: con,
-    //    db:     db,
+        db:     db,
     }
 
     svr := &http.Server{
