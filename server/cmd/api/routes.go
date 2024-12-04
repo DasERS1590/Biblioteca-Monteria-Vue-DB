@@ -14,18 +14,10 @@ func (app *application) routes() *http.ServeMux {
 	mux.HandleFunc("GET /api/admin/loans", app.getActiveLoansHandler) 
 	mux.HandleFunc("GET /api/admin/fines/to", app.getPendingFinesHandler) 
 	mux.HandleFunc("GET /api/admin/fines", app.getUserFinesHandler)
-
-	// 7. Reservas activas por usuario o libro
-	mux.HandleFunc("GET /api/admin/reservations", app.getActiveReservationsHandler) // GET
-
-	// 8. Historial de préstamos por usuario
-	mux.HandleFunc("GET /api/admin/loans/history", app.getUserLoanHistoryHandler) // GET
-
-	// 9. Libros disponibles por género y autor (Administrador)
-	mux.HandleFunc("GET /api/admin/books/available", app.getBooksByGenreAndAuthorHandler) // GET
-
-	// 10. Libros por fecha de publicación (Administrador)
-	mux.HandleFunc("GET /api/admin/books/published", app.getBooksByPublicationDateHandler) // GET
+	mux.HandleFunc("GET /api/admin/reservations", app.getActiveReservationsHandler) 
+	mux.HandleFunc("GET /api/admin/loans/history", app.getUserLoanHistoryHandler) 
+	mux.HandleFunc("GET /api/admin/books/available", app.getBooksByGenreAndAuthorHandler) 
+	mux.HandleFunc("GET /api/admin/books/published", app.getBooksByPublicationDateHandler) 
 
 	// Rutas para Usuario
 
