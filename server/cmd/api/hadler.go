@@ -720,7 +720,86 @@ func (app *application) getBooksAvailableByGenreAndAuthorHandler(w http.Response
 }
 
 func (app *application) getUserActiveLoanStatusHandler(w http.ResponseWriter, r *http.Request) {
-	
+
+	// Validar que el método sea GET
+	if r.Method != http.MethodGet {
+		http.Error(w, "Método no permitido", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Obtener el parámetro del usuario desde la URL
+	usuarioID := r.URL.Query().Get("usuario_id")
+	if usuarioID == "" {
+		http.Error(w, "El parámetro 'usuario_id' es obligatorio", http.StatusBadRequest)
+		return
+	}
+
+	// Construir consulta SQL
+	query := `
+		SELECT 
+			prestamo.idprestamo,
+			prestamo.fechaprestamo,
+			prestamo.fechadevolucion,
+			prestamo.estado,
+			libro.titulo AS titulo_libro
+		FROM 
+			prestamo
+		JOIN 
+			libro ON prestamo.idlibro = libro.idlibro
+		WHERE 
+			prestamo.idsocio = ? AND prestamo.estado = 'activo'
+	`
+
+	// Ejecutar la consulta
+	rows, err := app.db.Query(query, usuarioID)
+	if err != nil {
+		http.Error(w, "Error ejecutando consulta", http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	// Definir la estructura para los préstamos
+	type Loan struct {
+		IDPrestamo      int    `json:"id_prestamo"`
+		FechaPrestamo   string `json:"fecha_prestamo"`
+		FechaDevolucion string `json:"fecha_devolucion"`
+		Estado          string `json:"estado"`
+		TituloLibro     string `json:"titulo_libro"`
+	}
+
+	var loans []Loan
+
+	// Procesar resultados
+	for rows.Next() {
+		var loan Loan
+		err := rows.Scan(&loan.IDPrestamo, &loan.FechaPrestamo, &loan.FechaDevolucion, &loan.Estado, &loan.TituloLibro)
+		if err != nil {
+			http.Error(w, "Error al leer los resultados", http.StatusInternalServerError)
+			return
+		}
+		loans = append(loans, loan)
+	}
+
+	if err := rows.Err(); err != nil {
+		http.Error(w, "Error durante la iteración de filas", http.StatusInternalServerError)
+		return
+	}
+
+	// Si no hay resultados, enviar un mensaje claro
+	if len(loans) == 0 {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(map[string]string{"message": "No hay préstamos activos para este usuario"})
+		return
+	}
+
+	// Responder con los resultados en formato JSON
+	w.Header().Set("Content-Type", "application/json")
+	err = json.NewEncoder(w).Encode(loans)
+	if err != nil {
+		http.Error(w, "Error al codificar la respuesta", http.StatusInternalServerError)
+	}
+
 }
 
 func (app *application) getUserCompletedLoanHistoryHandler(w http.ResponseWriter, r *http.Request) {
