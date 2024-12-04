@@ -26,7 +26,6 @@ func (app *application) routes() *http.ServeMux {
 	mux.HandleFunc("GET /api/fines", app.getUserPendingFinesHandler)
 	mux.HandleFunc("GET /api/reservations", app.getUserActiveReservationsHandler) // GET
 
-	// Rutas Adicionales
 
 	// Rutas de Autenticación
 	mux.HandleFunc("POST /api/login", app.loginHandler)       // POST - Iniciar sesión

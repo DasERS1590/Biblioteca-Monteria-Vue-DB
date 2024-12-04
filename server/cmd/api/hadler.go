@@ -1,7 +1,10 @@
 package main
 
 import (
+	"crypto/sha256"
+	"database/sql"
 	"encoding/json"
+	"fmt"
 	"net/http"
 )
 
@@ -1042,7 +1045,79 @@ func (app *application) getUserActiveReservationsHandler(w http.ResponseWriter, 
 }
 
 func (app *application) loginHandler(w http.ResponseWriter, r *http.Request) {
-	// Lógica para login
+
+	// Estructura para la solicitud de inicio de sesión
+	type Credentials struct {
+		Correo     string `json:"correo"`
+		Contrasena string `json:"contrasena"`
+	}
+
+	// Estructura para el usuario
+	type Usuario struct {
+		ID       int    `json:"id"`
+		Nombre   string `json:"nombre"`
+		Rol      string `json:"rol"`
+		Password string `json:"password"`
+	}
+
+	// Asegurarse de que el método sea POST
+	if r.Method != http.MethodPost {
+		http.Error(w, "Método no permitido", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Decodificar el cuerpo JSON de la solicitud
+	var credentials Credentials
+	err := json.NewDecoder(r.Body).Decode(&credentials)
+	if err != nil {
+		http.Error(w, "Error al leer el cuerpo de la solicitud", http.StatusBadRequest)
+		return
+	}
+
+	// Consulta para obtener la información del usuario
+	query := `
+		SELECT socio.idsocio, socio.nombre, socio.rol, usuariopassword.hash_contrasena
+		FROM socio
+		JOIN usuariopassword ON socio.idsocio = usuariopassword.idusuario
+		WHERE socio.correo = ?
+	`
+
+	var usuario Usuario
+	err = app.db.QueryRow(query, credentials.Correo).Scan(&usuario.ID, &usuario.Nombre, &usuario.Rol, &usuario.Password)
+	fmt.Println(usuario)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			
+
+			http.Error(w, "Correo o contraseña incorrectos", http.StatusUnauthorized)
+		} else {
+			http.Error(w, "Error en la consulta de usuario", http.StatusInternalServerError)
+		}
+		return
+	}
+
+	// Función para encriptar la contraseña usando SHA-256
+	hashPassword := func(password string) string {
+		// Generar el hash de la contraseña utilizando SHA-256
+		hash := sha256.New()
+		hash.Write([]byte(password))
+		return fmt.Sprintf("%x", hash.Sum(nil)) // Retornar el hash como cadena hex
+	}
+
+	// Verificar si la contraseña es correcta usando SHA-256
+	hashedPassword := hashPassword(credentials.Contrasena)
+	if hashedPassword != usuario.Password {
+		http.Error(w, "Correo o contraseña incorrectos", http.StatusUnauthorized)
+		//return
+	}
+
+	// Responder con el usuario autenticado y su rol
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"id":     usuario.ID,
+		"nombre": usuario.Nombre,
+		"rol":    usuario.Rol,
+	})
 }
 
 func (app *application) registerHandler(w http.ResponseWriter, r *http.Request) {
