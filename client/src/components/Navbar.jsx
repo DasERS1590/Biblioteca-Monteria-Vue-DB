@@ -1,8 +1,18 @@
 import React from "react";
-import { Link } from "react-router-dom";
 import "../styles/Navar.css"
+import { Link, useNavigate } from "react-router-dom";
 
 const Navbar = ({ isAdmin }) => {
+
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    localStorage.removeItem("user");
+    console.log("Usuario deslogueado");
+    navigate("/login");
+  
+  };
+
   return (
     <nav className="navbar">
       <h2>{isAdmin ? "Admin Panel" : "User Panel"}</h2>
@@ -20,7 +30,9 @@ const Navbar = ({ isAdmin }) => {
             <li><Link to="/user/profile">Profile</Link></li>
           </>
         )}
-        <li><Link to="/login">Logout</Link></li>
+         <button onClick={handleLogout} style={{ cursor: "pointer", background: "none", border: "none", color: "blue", textDecoration: "underline" }}>
+            Logout
+         </button>
       </ul>
     </nav>
   );
