@@ -2,55 +2,31 @@ package main
 
 import (
 	"net/http"
+	"github.com/rs/cors"
 )
 
-func (app *application) routes() *http.ServeMux {
+func (app *application) routes() http.Handler {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("/", app.home)
 	mux.HandleFunc("GET /api/admin/books", app.getFilteredBooksHandler) 
 	mux.HandleFunc("GET /api/admin/books/unavailable", app.getUnavailableBooksHandler)
 	mux.HandleFunc("GET /api/admin/users", app.getUsersByTypeHandler) 
-
-	// 4. Préstamos activos por usuario y rango de fechas
-	mux.HandleFunc("GET /api/admin/loans", app.getActiveLoansHandler) // GET
-
-	// 5. Multas pendientes de pago
-	mux.HandleFunc("GET /api/admin/fines/to", app.getPendingFinesHandler) // GET
-
-	// 6. Historial completo de multas por usuario
-	mux.HandleFunc("GET /api/admin/fines", app.getUserFinesHandler) // GET
-
-	// 7. Reservas activas por usuario o libro
-	mux.HandleFunc("GET /api/admin/reservations", app.getActiveReservationsHandler) // GET
-
-	// 8. Historial de préstamos por usuario
-	mux.HandleFunc("GET /api/admin/loans/history", app.getUserLoanHistoryHandler) // GET
-
-	// 9. Libros disponibles por género y autor (Administrador)
-	mux.HandleFunc("GET /api/admin/books/available", app.getBooksByGenreAndAuthorHandler) // GET
-
-	// 10. Libros por fecha de publicación (Administrador)
-	mux.HandleFunc("GET /api/admin/books/published", app.getBooksByPublicationDateHandler) // GET
+	mux.HandleFunc("GET /api/admin/loans", app.getActiveLoansHandler) 
+	mux.HandleFunc("GET /api/admin/fines/to", app.getPendingFinesHandler) 
+	mux.HandleFunc("GET /api/admin/fines", app.getUserFinesHandler)
+	mux.HandleFunc("GET /api/admin/reservations", app.getActiveReservationsHandler) 
+	mux.HandleFunc("GET /api/admin/loans/history", app.getUserLoanHistoryHandler) 
+	mux.HandleFunc("GET /api/admin/books/available", app.getBooksByGenreAndAuthorHandler) 
+	mux.HandleFunc("GET /api/admin/books/published", app.getBooksByPublicationDateHandler) 
 
 	// Rutas para Usuario
-
-	// 11. Libros disponibles por género y autor (Usuario)
-	mux.HandleFunc("GET /api/books", app.getBooksAvailableByGenreAndAuthorHandler) // GET
-
-	// 12. Estado de préstamos activos del usuario
-	mux.HandleFunc("GET /api/loans", app.getUserActiveLoanStatusHandler) // GET
-
-	// 13. Historial de préstamos completados del usuario
-	mux.HandleFunc("GET /api/loans/completed", app.getUserCompletedLoanHistoryHandler) // GET
-
-	// 14. Multas pendientes del usuario
-	mux.HandleFunc("GET /api/fines", app.getUserPendingFinesHandler) // GET
-
-	// 15. Reservas activas del usuario
+	mux.HandleFunc("GET /api/books", app.getBooksAvailableByGenreAndAuthorHandler) 
+	mux.HandleFunc("GET /api/loans", app.getUserActiveLoanStatusHandler) 
+	mux.HandleFunc("GET /api/loans/completed", app.getUserCompletedLoanHistoryHandler) 
+	mux.HandleFunc("GET /api/fines", app.getUserPendingFinesHandler)
 	mux.HandleFunc("GET /api/reservations", app.getUserActiveReservationsHandler) // GET
 
-	// Rutas Adicionales
 
 	// Rutas de Autenticación
 	mux.HandleFunc("POST /api/login", app.loginHandler)       // POST - Iniciar sesión
@@ -74,5 +50,14 @@ func (app *application) routes() *http.ServeMux {
 	// Rutas de Notificaciones
 	mux.HandleFunc("GET /api/notifications", app.getNotificationsHandler) // GET - Obtener notificaciones
 
-	return mux
+
+	c := cors.New(cors.Options{
+        AllowedOrigins:   []string{"http://127.0.0.1:3000"}, // Dominios permitidos
+        AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+        AllowedHeaders:   []string{"Content-Type", "Authorization"},
+        AllowCredentials: true,
+    })
+
+	
+	return c.Handler(mux)
 }
