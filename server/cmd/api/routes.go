@@ -17,8 +17,6 @@ func (app *application) routes() *http.ServeMux {
 	mux.HandleFunc("GET /api/admin/reservations", app.getActiveReservationsHandler) 
 	mux.HandleFunc("GET /api/admin/loans/history", app.getUserLoanHistoryHandler) 
 	mux.HandleFunc("GET /api/admin/books/available", app.getBooksByGenreAndAuthorHandler) 
-
-	// 10. Libros por fecha de publicación (Administrador)
 	mux.HandleFunc("GET /api/admin/books/published", app.getBooksByPublicationDateHandler) 
 
 	// Rutas para Usuario

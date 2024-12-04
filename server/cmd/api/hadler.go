@@ -348,35 +348,35 @@ func (app *application) getActiveReservationsHandler(w http.ResponseWriter, r *h
 		WHERE 
 			estado = "activa" AND (idsocio = ? OR idlibro = ?) 
 	`
-	rows, err := app.db.Query(query ,usuario, libro)
+	rows, err := app.db.Query(query, usuario, libro)
 	if err != nil {
 		http.Error(w, "Error ejecutando consulta", http.StatusInternalServerError)
 		return
 	}
 
 	type Reservation struct {
-		Id            int `json:"id"`
-		IdReservation int `json:"idreserva"`
-		IdBook        int `json:"idbook"`
-		Fechareserva  string  `json:"fechareserva"`
-		Estado        string  `json:"estado"`
+		Id            int    `json:"id"`
+		IdReservation int    `json:"idreserva"`
+		IdBook        int    `json:"idbook"`
+		Fechareserva  string `json:"fechareserva"`
+		Estado        string `json:"estado"`
 	}
 
-	reservations := make([]Reservation , 0 )
-	
-	for rows.Next(){
+	reservations := make([]Reservation, 0)
+
+	for rows.Next() {
 		var reservation Reservation
 
 		err := rows.Scan(
 			&reservation.Id,
 			&reservation.IdReservation,
 			&reservation.IdBook,
-			&reservation.Fechareserva, 
+			&reservation.Fechareserva,
 			&reservation.Estado,
 		)
 
-		if err !=  nil {
-			http.Error( w ,"Error al leer los resultados", http.StatusInternalServerError)
+		if err != nil {
+			http.Error(w, "Error al leer los resultados", http.StatusInternalServerError)
 		}
 		reservations = append(reservations, reservation)
 	}
@@ -387,10 +387,10 @@ func (app *application) getActiveReservationsHandler(w http.ResponseWriter, r *h
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	
-	err =  json.NewEncoder(w).Encode(reservations)
+
+	err = json.NewEncoder(w).Encode(reservations)
 	if err != nil {
-		http.Error(w , "Error al codificar la respuesta" , http.StatusInternalServerError)
+		http.Error(w, "Error al codificar la respuesta", http.StatusInternalServerError)
 	}
 }
 
@@ -416,7 +416,7 @@ func (app *application) getUserLoanHistoryHandler(w http.ResponseWriter, r *http
 			prestamo.fechaprestamo DESC
 	`
 
-	rows , err := app.db.Query(query , idUsuario)
+	rows, err := app.db.Query(query, idUsuario)
 
 	if err != nil {
 		http.Error(w, "Error ejecutando consulta", http.StatusInternalServerError)
@@ -425,16 +425,16 @@ func (app *application) getUserLoanHistoryHandler(w http.ResponseWriter, r *http
 	defer rows.Close()
 
 	type Loan struct {
-		IDPrestamo     int    `json:"id_prestamo"`
-		IDUsuario      int    `json:"id_usuario"`
-		IDLibro        int    `json:"id_libro"`
-		TituloLibro    string `json:"titulo_libro"`
-		FechaPrestamo  string `json:"fecha_prestamo"`
+		IDPrestamo      int    `json:"id_prestamo"`
+		IDUsuario       int    `json:"id_usuario"`
+		IDLibro         int    `json:"id_libro"`
+		TituloLibro     string `json:"titulo_libro"`
+		FechaPrestamo   string `json:"fecha_prestamo"`
 		FechaDevolucion string `json:"fecha_devolucion"`
-		Estado         string `json:"estado"`
+		Estado          string `json:"estado"`
 	}
 
-	loans := make([]Loan , 0)
+	loans := make([]Loan, 0)
 
 	for rows.Next() {
 		var loan Loan
@@ -548,7 +548,90 @@ func (app application) getBooksByGenreAndAuthorHandler(w http.ResponseWriter, r 
 }
 
 func (app *application) getBooksByPublicationDateHandler(w http.ResponseWriter, r *http.Request) {
-	// Lógica para obtener libros por fecha de publicación (Administrador)
+	// Validar que el método sea GET
+	if r.Method != http.MethodGet {
+		http.Error(w, "Método no permitido", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Obtener los parámetros de la URL
+	startDate := r.URL.Query().Get("start_date")
+	endDate := r.URL.Query().Get("end_date")
+
+	// Validar que ambos parámetros estén presentes
+	if startDate == "" || endDate == "" {
+		http.Error(w, "Los parámetros 'start_date' y 'end_date' son obligatorios", http.StatusBadRequest)
+		return
+	}
+
+	// Construir consulta SQL
+	query := `
+			SELECT 
+				libro.idlibro,
+				libro.titulo,
+				libro.genero,
+				libro.fechapublicacion,
+				libro.estado,
+				editorial.nombre AS editorial
+			FROM 
+				libro
+			JOIN 
+				editorial ON libro.ideditorial = editorial.ideditorial
+			WHERE 
+				libro.fechapublicacion BETWEEN ? AND ?
+		`
+
+	// Ejecutar la consulta
+	rows, err := app.db.Query(query, startDate, endDate)
+	if err != nil {
+		http.Error(w, "Error ejecutando consulta", http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	// Definir la estructura para los libros
+	type Book struct {
+		IDLibro          int    `json:"id_libro"`
+		Titulo           string `json:"titulo"`
+		Genero           string `json:"genero"`
+		FechaPublicacion string `json:"fecha_publicacion"`
+		Estado           string `json:"estado"`
+		Editorial        string `json:"editorial"`
+	}
+
+	var books []Book
+
+	// Procesar resultados
+	for rows.Next() {
+		var book Book
+		err := rows.Scan(&book.IDLibro, &book.Titulo, &book.Genero, &book.FechaPublicacion, &book.Estado, &book.Editorial)
+		if err != nil {
+			http.Error(w, "Error al leer los resultados", http.StatusInternalServerError)
+			return
+		}
+		books = append(books, book)
+	}
+
+	if err := rows.Err(); err != nil {
+		http.Error(w, "Error durante la iteración de filas", http.StatusInternalServerError)
+		return
+	}
+
+	// Si no hay resultados, enviar mensaje claro
+	if len(books) == 0 {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(map[string]string{"message": "No hay libros publicados en el rango de fechas especificado"})
+		return
+	}
+
+	// Responder con los resultados en formato JSON
+	w.Header().Set("Content-Type", "application/json")
+	err = json.NewEncoder(w).Encode(books)
+	if err != nil {
+		http.Error(w, "Error al codificar la respuesta", http.StatusInternalServerError)
+	}
+
 }
 
 func (app *application) getBooksAvailableByGenreAndAuthorHandler(w http.ResponseWriter, r *http.Request) {
