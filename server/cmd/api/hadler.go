@@ -963,9 +963,82 @@ func (app *application) getUserPendingFinesHandler(w http.ResponseWriter, r *htt
 }
 
 func (app *application) getUserActiveReservationsHandler(w http.ResponseWriter, r *http.Request) {
-	// Lógica para obtener reservas activas del usuario
-	
-	// 15. Reservas activas del usuario
+	// Validar que el método sea GET
+	if r.Method != http.MethodGet {
+		http.Error(w, "Método no permitido", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Obtener el parámetro del usuario desde la URL
+	usuarioID := r.URL.Query().Get("usuario_id")
+	if usuarioID == "" {
+		http.Error(w, "El parámetro 'usuario_id' es obligatorio", http.StatusBadRequest)
+		return
+	}
+
+	// Construir consulta SQL para obtener las reservas activas del usuario
+	query := `
+		SELECT 
+			reserva.idreserva,
+			reserva.idsocio,
+			reserva.idlibro,
+			reserva.fechareserva,
+			reserva.estado
+		FROM 
+			reserva
+		WHERE 
+			reserva.idsocio = ? AND reserva.estado = 'activa'
+	`
+
+	// Ejecutar la consulta
+	rows, err := app.db.Query(query, usuarioID)
+	if err != nil {
+		http.Error(w, "Error ejecutando consulta", http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	// Definir la estructura para las reservas
+	type Reservation struct {
+		IDReserva    int    `json:"id_reserva"`
+		IDSocio      int    `json:"id_socio"`
+		IDLibro      int    `json:"id_libro"`
+		FechaReserva string `json:"fecha_reserva"`
+		Estado       string `json:"estado"`
+	}
+
+	var reservations []Reservation
+
+	// Procesar resultados
+	for rows.Next() {
+		var reservation Reservation
+		err := rows.Scan(&reservation.IDReserva, &reservation.IDSocio, &reservation.IDLibro, &reservation.FechaReserva, &reservation.Estado)
+		if err != nil {
+			http.Error(w, "Error al leer los resultados", http.StatusInternalServerError)
+			return
+		}
+		reservations = append(reservations, reservation)
+	}
+
+	if err := rows.Err(); err != nil {
+		http.Error(w, "Error durante la iteración de filas", http.StatusInternalServerError)
+		return
+	}
+
+	// Si no hay resultados, enviar mensaje claro
+	if len(reservations) == 0 {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(map[string]string{"message": "No hay reservas activas para este usuario"})
+		return
+	}
+
+	// Responder con los resultados en formato JSON
+	w.Header().Set("Content-Type", "application/json")
+	err = json.NewEncoder(w).Encode(reservations)
+	if err != nil {
+		http.Error(w, "Error al codificar la respuesta", http.StatusInternalServerError)
+	}
 }
 
 func (app *application) loginHandler(w http.ResponseWriter, r *http.Request) {
