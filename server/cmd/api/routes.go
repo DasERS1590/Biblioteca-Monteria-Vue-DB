@@ -2,9 +2,10 @@ package main
 
 import (
 	"net/http"
+	"github.com/rs/cors"
 )
 
-func (app *application) routes() *http.ServeMux {
+func (app *application) routes() http.Handler {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("/", app.home)
@@ -49,5 +50,14 @@ func (app *application) routes() *http.ServeMux {
 	// Rutas de Notificaciones
 	mux.HandleFunc("GET /api/notifications", app.getNotificationsHandler) // GET - Obtener notificaciones
 
-	return mux
+
+	c := cors.New(cors.Options{
+        AllowedOrigins:   []string{"http://127.0.0.1:3000"}, // Dominios permitidos
+        AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+        AllowedHeaders:   []string{"Content-Type", "Authorization"},
+        AllowCredentials: true,
+    })
+
+	
+	return c.Handler(mux)
 }

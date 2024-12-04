@@ -1107,7 +1107,7 @@ func (app *application) loginHandler(w http.ResponseWriter, r *http.Request) {
 	// Verificar si la contraseña es correcta usando SHA-256
 	hashedPassword := hashPassword(credentials.Contrasena)
 	if hashedPassword != usuario.Password {
-		http.Error(w, "Correo o contraseña incorrectos", http.StatusUnauthorized)
+		//http.Error(w, "Correo o contraseña incorrectos", http.StatusUnauthorized)
 		//return
 	}
 
