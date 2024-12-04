@@ -149,22 +149,22 @@ func (app *application) getUsersByTypeHandler(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	defer rows.Close();
+	defer rows.Close()
 
 	type User struct {
-		ID            int    `json:"id"`
-		Nombre        string `json:"nombre"`
-		Direccion     string `json:"direccion"`
-		Telefono      string `json:"telefono"`
-		Correo        string `json:"correo"`
+		ID              int    `json:"id"`
+		Nombre          string `json:"nombre"`
+		Direccion       string `json:"direccion"`
+		Telefono        string `json:"telefono"`
+		Correo          string `json:"correo"`
 		FechaNacimiento string `json:"fechanacimiento"`
-		TipoSocio     string `json:"tiposocio"`
-		FechaRegistro string `json:"fecharegistro"`
-		ImagenPerfil  string `json:"imagenperfil"`
-		Rol           string `json:"rol"`
+		TipoSocio       string `json:"tiposocio"`
+		FechaRegistro   string `json:"fecharegistro"`
+		ImagenPerfil    string `json:"imagenperfil"`
+		Rol             string `json:"rol"`
 	}
 
-	users := make([]User ,0)
+	users := make([]User, 0)
 
 	for rows.Next() {
 		var user User
@@ -213,12 +213,12 @@ func (app *application) getActiveLoansHandler(w http.ResponseWriter, r *http.Req
 	defer rows.Close()
 
 	type Loans struct {
-		IDPrestamo     int       `json:"idprestamo"`
-		IDSocio        int       `json:"idsocio"`
-		IDLibro        int       `json:"idlibro"`
-		FechaPrestamo  string    `json:"fechaprestamo"`
-		FechaDevolucion string   `json:"fechadevolucion"`
-		Estado         string    `json:"estado"`
+		IDPrestamo      int    `json:"idprestamo"`
+		IDSocio         int    `json:"idsocio"`
+		IDLibro         int    `json:"idlibro"`
+		FechaPrestamo   string `json:"fechaprestamo"`
+		FechaDevolucion string `json:"fechadevolucion"`
+		Estado          string `json:"estado"`
 	}
 
 	loans := make([]Loans, 0)
@@ -256,14 +256,14 @@ func (app *application) getPendingFinesHandler(w http.ResponseWriter, r *http.Re
 	defer rows.Close()
 
 	type PendingFines struct {
-		IDMulta     int     `json:"idmulta"`
-		IDPrestamo  int     `json:"idprestamo"`
-		SaldoPagar  float64 `json:"saldopagar"`
-		FechaMulta  string  `json:"fechamulta"`
-		Estado      string  `json:"estado"`
+		IDMulta    int     `json:"idmulta"`
+		IDPrestamo int     `json:"idprestamo"`
+		SaldoPagar float64 `json:"saldopagar"`
+		FechaMulta string  `json:"fechamulta"`
+		Estado     string  `json:"estado"`
 	}
 
-	pendingFines := make([]PendingFines , 0)
+	pendingFines := make([]PendingFines, 0)
 
 	for rows.Next() {
 		var fine PendingFines
@@ -306,14 +306,14 @@ func (app *application) getUserFinesHandler(w http.ResponseWriter, r *http.Reque
 	defer rows.Close()
 
 	type Fines struct {
-		IDMulta     int     `json:"idmulta"`
-		IDPrestamo  int     `json:"idprestamo"`
-		SaldoPagar  float64 `json:"saldopagar"`
-		FechaMulta  string  `json:"fechamulta"`
-		Estado      string  `json:"estado"`
+		IDMulta    int     `json:"idmulta"`
+		IDPrestamo int     `json:"idprestamo"`
+		SaldoPagar float64 `json:"saldopagar"`
+		FechaMulta string  `json:"fechamulta"`
+		Estado     string  `json:"estado"`
 	}
 
-	fines := make([]Fines , 0)
+	fines := make([]Fines, 0)
 
 	for rows.Next() {
 		var fine Fines
@@ -324,7 +324,7 @@ func (app *application) getUserFinesHandler(w http.ResponseWriter, r *http.Reque
 		}
 		fines = append(fines, fine)
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	err = json.NewEncoder(w).Encode(fines)
 	if err != nil {
@@ -332,9 +332,66 @@ func (app *application) getUserFinesHandler(w http.ResponseWriter, r *http.Reque
 	}
 }
 
-
 func (app *application) getActiveReservationsHandler(w http.ResponseWriter, r *http.Request) {
-	// Lógica para obtener reservas activas por usuario o libro
+	usuario := r.URL.Query().Get("usuario")
+	libro := r.URL.Query().Get("libro")
+
+	query := `
+		SELECT 
+			reserva.idreserva,
+			reserva.idsocio, 
+			reserva.idlibro,
+			reserva.fechareserva,
+			reserva.estado
+		FROM 
+			reserva
+		WHERE 
+			estado = "activa" AND (idsocio = ? OR idlibro = ?) 
+	`
+	rows, err := app.db.Query(query ,usuario, libro)
+	if err != nil {
+		http.Error(w, "Error ejecutando consulta", http.StatusInternalServerError)
+		return
+	}
+
+	type Reservation struct {
+		Id            int `json:"id"`
+		IdReservation int `json:"idreserva"`
+		IdBook        int `json:"idbook"`
+		Fechareserva  string  `json:"fechareserva"`
+		Estado        string  `json:"estado"`
+	}
+
+	reservations := make([]Reservation , 0 )
+	
+	for rows.Next(){
+		var reservation Reservation
+
+		err := rows.Scan(
+			&reservation.Id,
+			&reservation.IdReservation,
+			&reservation.IdBook,
+			&reservation.Fechareserva, 
+			&reservation.Estado,
+		)
+
+		if err !=  nil {
+			http.Error( w ,"Error al leer los resultados", http.StatusInternalServerError)
+		}
+		reservations = append(reservations, reservation)
+	}
+
+	if err := rows.Err(); err != nil {
+		http.Error(w, "Error durante la iteración de filas", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	
+	err =  json.NewEncoder(w).Encode(reservations)
+	if err != nil {
+		http.Error(w , "Error al codificar la respuesta" , http.StatusInternalServerError)
+	}
 }
 
 func (app *application) getUserLoanHistoryHandler(w http.ResponseWriter, r *http.Request) {
