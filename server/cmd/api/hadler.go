@@ -473,7 +473,78 @@ func (app *application) getUserLoanHistoryHandler(w http.ResponseWriter, r *http
 }
 
 func (app application) getBooksByGenreAndAuthorHandler(w http.ResponseWriter, r *http.Request) {
-	// Lógica para obtener libros disponibles por género y autor (Administrador)
+
+	if r.Method != http.MethodGet {
+		http.Error(w, "Método no permitido", http.StatusMethodNotAllowed)
+		return
+	}
+
+	genero := r.URL.Query().Get("genero")
+	autor := r.URL.Query().Get("autor")
+
+	query := `
+		SELECT 
+			libro.idlibro,
+			libro.titulo,
+			libro.genero,
+			libro.estado,
+			autor.nombre AS autor
+		FROM 
+			libro
+		JOIN 
+			libro_autor ON libro.idlibro = libro_autor.idlibro
+		JOIN 
+			autor ON libro_autor.idautor = autor.idautor
+		WHERE 
+			libro.estado = 'disponible'
+			AND libro.genero = ?
+			AND autor.nombre LIKE ?
+	`
+
+	rows, err := app.db.Query(query, genero, "%"+autor+"%")
+	if err != nil {
+		http.Error(w, "Error ejecutando consulta", http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	type Book struct {
+		IDLibro int    `json:"id_libro"`
+		Titulo  string `json:"titulo"`
+		Genero  string `json:"genero"`
+		Estado  string `json:"estado"`
+		Autor   string `json:"autor"`
+	}
+
+	var books []Book
+
+	for rows.Next() {
+		var book Book
+		err := rows.Scan(&book.IDLibro, &book.Titulo, &book.Genero, &book.Estado, &book.Autor)
+		if err != nil {
+			http.Error(w, "Error al leer los resultados", http.StatusInternalServerError)
+			return
+		}
+		books = append(books, book)
+	}
+
+	if err := rows.Err(); err != nil {
+		http.Error(w, "Error durante la iteración de filas", http.StatusInternalServerError)
+		return
+	}
+
+	if len(books) == 0 {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(map[string]string{"message": "No hay libros disponibles para el criterio especificado"})
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	err = json.NewEncoder(w).Encode(books)
+	if err != nil {
+		http.Error(w, "Error al codificar la respuesta", http.StatusInternalServerError)
+	}
 }
 
 func (app *application) getBooksByPublicationDateHandler(w http.ResponseWriter, r *http.Request) {
