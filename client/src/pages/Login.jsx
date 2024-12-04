@@ -1,16 +1,46 @@
 // src/pages/Login.jsx
 import React, { useState } from "react";
 import "../styles/login.css"; // Importamos los estilos
+import { useNavigate } from "react-router-dom";
 
 const Login = () => {
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
+  const navigate = useNavigate();
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log("Form submitted with:", { email, password });
 
-    role === "admin" ? navigate("/admin/dashboard") : navigate("/user/dashboard");
+    try {
+      // Hacer la solicitud al backend
+      const response = await fetch("http://localhost:4000/api/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ correo: email, contrasena: password }),
+      });
+
+      if (!response.ok) {
+        // Si la respuesta no es OK, mostrar un error
+        const errorData = await response.json();
+        setErrorMessage(errorData.message || "Login failed.");
+        return;
+      }
+
+      const data = await response.json();
+
+      if (data.rol === "administrador") {
+        navigate("/admin/dashboard");
+      } else {
+        navigate("/user/dashboard");
+      }
+    } catch (error) {
+      console.error("Error during login:", error );
+      setErrorMessage("An error occurred. Please try again.");
+    }
   };
 
   return (
