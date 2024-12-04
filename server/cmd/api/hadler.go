@@ -1,7 +1,10 @@
 package main
 
 import (
+	"crypto/sha256"
+	"database/sql"
 	"encoding/json"
+	"fmt"
 	"net/http"
 )
 
@@ -635,27 +638,486 @@ func (app *application) getBooksByPublicationDateHandler(w http.ResponseWriter, 
 }
 
 func (app *application) getBooksAvailableByGenreAndAuthorHandler(w http.ResponseWriter, r *http.Request) {
-	// Lógica para obtener libros disponibles por género y autor (Usuario)
+	if r.Method != http.MethodGet {
+		http.Error(w, "Método no permitido", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Obtener los parámetros de la URL
+	genero := r.URL.Query().Get("genero")
+	autor := r.URL.Query().Get("autor")
+
+	// Validar que los parámetros sean proporcionados
+	if genero == "" || autor == "" {
+		http.Error(w, "Los parámetros 'genero' y 'autor' son obligatorios", http.StatusBadRequest)
+		return
+	}
+
+	// Construir consulta SQL
+	query := `
+		SELECT 
+			libro.idlibro,
+			libro.titulo,
+			libro.genero,
+			libro.estado,
+			autor.nombre AS autor
+		FROM 
+			libro
+		JOIN 
+			libro_autor ON libro.idlibro = libro_autor.idlibro
+		JOIN 
+			autor ON libro_autor.idautor = autor.idautor
+		WHERE 
+			libro.estado = 'disponible' AND libro.genero = ? AND autor.nombre LIKE ?
+	`
+
+	// Ejecutar la consulta
+	rows, err := app.db.Query(query, genero, "%"+autor+"%")
+	if err != nil {
+		http.Error(w, "Error ejecutando consulta", http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	// Definir la estructura para los libros
+	type Book struct {
+		IDLibro int    `json:"id_libro"`
+		Titulo  string `json:"titulo"`
+		Genero  string `json:"genero"`
+		Estado  string `json:"estado"`
+		Autor   string `json:"autor"`
+	}
+
+	var books []Book
+
+	// Procesar resultados
+	for rows.Next() {
+		var book Book
+		err := rows.Scan(&book.IDLibro, &book.Titulo, &book.Genero, &book.Estado, &book.Autor)
+		if err != nil {
+			http.Error(w, "Error al leer los resultados", http.StatusInternalServerError)
+			return
+		}
+		books = append(books, book)
+	}
+
+	if err := rows.Err(); err != nil {
+		http.Error(w, "Error durante la iteración de filas", http.StatusInternalServerError)
+		return
+	}
+
+	// Si no hay resultados, enviar mensaje claro
+	if len(books) == 0 {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(map[string]string{"message": "No hay libros disponibles para el criterio especificado"})
+		return
+	}
+
+	// Responder con los resultados en formato JSON
+	w.Header().Set("Content-Type", "application/json")
+	err = json.NewEncoder(w).Encode(books)
+	if err != nil {
+		http.Error(w, "Error al codificar la respuesta", http.StatusInternalServerError)
+	}
 }
 
 func (app *application) getUserActiveLoanStatusHandler(w http.ResponseWriter, r *http.Request) {
-	// Lógica para obtener estado de préstamos activos del usuario
+
+	// Validar que el método sea GET
+	if r.Method != http.MethodGet {
+		http.Error(w, "Método no permitido", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Obtener el parámetro del usuario desde la URL
+	usuarioID := r.URL.Query().Get("usuario_id")
+	if usuarioID == "" {
+		http.Error(w, "El parámetro 'usuario_id' es obligatorio", http.StatusBadRequest)
+		return
+	}
+
+	// Construir consulta SQL
+	query := `
+		SELECT 
+			prestamo.idprestamo,
+			prestamo.fechaprestamo,
+			prestamo.fechadevolucion,
+			prestamo.estado,
+			libro.titulo AS titulo_libro
+		FROM 
+			prestamo
+		JOIN 
+			libro ON prestamo.idlibro = libro.idlibro
+		WHERE 
+			prestamo.idsocio = ? AND prestamo.estado = 'activo'
+	`
+
+	// Ejecutar la consulta
+	rows, err := app.db.Query(query, usuarioID)
+	if err != nil {
+		http.Error(w, "Error ejecutando consulta", http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	// Definir la estructura para los préstamos
+	type Loan struct {
+		IDPrestamo      int    `json:"id_prestamo"`
+		FechaPrestamo   string `json:"fecha_prestamo"`
+		FechaDevolucion string `json:"fecha_devolucion"`
+		Estado          string `json:"estado"`
+		TituloLibro     string `json:"titulo_libro"`
+	}
+
+	var loans []Loan
+
+	// Procesar resultados
+	for rows.Next() {
+		var loan Loan
+		err := rows.Scan(&loan.IDPrestamo, &loan.FechaPrestamo, &loan.FechaDevolucion, &loan.Estado, &loan.TituloLibro)
+		if err != nil {
+			http.Error(w, "Error al leer los resultados", http.StatusInternalServerError)
+			return
+		}
+		loans = append(loans, loan)
+	}
+
+	if err := rows.Err(); err != nil {
+		http.Error(w, "Error durante la iteración de filas", http.StatusInternalServerError)
+		return
+	}
+
+	// Si no hay resultados, enviar un mensaje claro
+	if len(loans) == 0 {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(map[string]string{"message": "No hay préstamos activos para este usuario"})
+		return
+	}
+
+	// Responder con los resultados en formato JSON
+	w.Header().Set("Content-Type", "application/json")
+	err = json.NewEncoder(w).Encode(loans)
+	if err != nil {
+		http.Error(w, "Error al codificar la respuesta", http.StatusInternalServerError)
+	}
+
 }
 
 func (app *application) getUserCompletedLoanHistoryHandler(w http.ResponseWriter, r *http.Request) {
-	// Lógica para obtener historial de préstamos completados del usuario
+	// Validar que el método sea GET
+	if r.Method != http.MethodGet {
+		http.Error(w, "Método no permitido", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Obtener el parámetro del usuario desde la URL
+	usuarioID := r.URL.Query().Get("usuario_id")
+	if usuarioID == "" {
+		http.Error(w, "El parámetro 'usuario_id' es obligatorio", http.StatusBadRequest)
+		return
+	}
+
+	// Construir consulta SQL
+	query := `
+			SELECT 
+				prestamo.idprestamo,
+				prestamo.fechaprestamo,
+				prestamo.fechadevolucion,
+				prestamo.estado,
+				libro.titulo AS titulo_libro
+			FROM 
+				prestamo
+			JOIN 
+				libro ON prestamo.idlibro = libro.idlibro
+			WHERE 
+				prestamo.idsocio = ? AND prestamo.estado = 'completado'
+		`
+
+	// Ejecutar la consulta
+	rows, err := app.db.Query(query, usuarioID)
+	if err != nil {
+		http.Error(w, "Error ejecutando consulta", http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	// Definir la estructura para los préstamos
+	type Loan struct {
+		IDPrestamo      int    `json:"id_prestamo"`
+		FechaPrestamo   string `json:"fecha_prestamo"`
+		FechaDevolucion string `json:"fecha_devolucion"`
+		Estado          string `json:"estado"`
+		TituloLibro     string `json:"titulo_libro"`
+	}
+
+	var loans []Loan
+
+	// Procesar resultados
+	for rows.Next() {
+		var loan Loan
+		err := rows.Scan(&loan.IDPrestamo, &loan.FechaPrestamo, &loan.FechaDevolucion, &loan.Estado, &loan.TituloLibro)
+		if err != nil {
+			http.Error(w, "Error al leer los resultados", http.StatusInternalServerError)
+			return
+		}
+		loans = append(loans, loan)
+	}
+
+	if err := rows.Err(); err != nil {
+		http.Error(w, "Error durante la iteración de filas", http.StatusInternalServerError)
+		return
+	}
+
+	// Si no hay resultados, enviar un mensaje claro
+	if len(loans) == 0 {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(map[string]string{"message": "No hay préstamos completados para este usuario"})
+		return
+	}
+
+	// Responder con los resultados en formato JSON
+	w.Header().Set("Content-Type", "application/json")
+	err = json.NewEncoder(w).Encode(loans)
+	if err != nil {
+		http.Error(w, "Error al codificar la respuesta", http.StatusInternalServerError)
+	}
 }
 
 func (app *application) getUserPendingFinesHandler(w http.ResponseWriter, r *http.Request) {
-	// Lógica para obtener multas pendientes del usuario
+	// Validar que el método sea GET
+	if r.Method != http.MethodGet {
+		http.Error(w, "Método no permitido", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Obtener el parámetro del usuario desde la URL
+	usuarioID := r.URL.Query().Get("usuario_id")
+	if usuarioID == "" {
+		http.Error(w, "El parámetro 'usuario_id' es obligatorio", http.StatusBadRequest)
+		return
+	}
+
+	// Construir consulta SQL para obtener las multas pendientes
+	query := `
+		SELECT 
+			multa.idmulta,
+			multa.saldopagar,
+			multa.fechamulta,
+			multa.estado
+		FROM 
+			multa
+		JOIN 
+			prestamo ON multa.idprestamo = prestamo.idprestamo
+		WHERE 
+			prestamo.idsocio = ? AND multa.estado = 'pendiente'
+	`
+
+	// Ejecutar la consulta
+	rows, err := app.db.Query(query, usuarioID)
+	if err != nil {
+		http.Error(w, "Error ejecutando consulta", http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	// Definir la estructura para las multas
+	type Fine struct {
+		IDMulta    int     `json:"id_multa"`
+		SaldoPagar float64 `json:"saldo_pagar"`
+		FechaMulta string  `json:"fecha_multa"`
+		Estado     string  `json:"estado"`
+	}
+
+	var fines []Fine
+
+	// Procesar resultados
+	for rows.Next() {
+		var fine Fine
+		err := rows.Scan(&fine.IDMulta, &fine.SaldoPagar, &fine.FechaMulta, &fine.Estado)
+		if err != nil {
+			http.Error(w, "Error al leer los resultados", http.StatusInternalServerError)
+			return
+		}
+		fines = append(fines, fine)
+	}
+
+	if err := rows.Err(); err != nil {
+		http.Error(w, "Error durante la iteración de filas", http.StatusInternalServerError)
+		return
+	}
+
+	// Si no hay resultados, enviar mensaje claro
+	if len(fines) == 0 {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(map[string]string{"message": "No hay multas pendientes para este usuario"})
+		return
+	}
+
+	// Responder con los resultados en formato JSON
+	w.Header().Set("Content-Type", "application/json")
+	err = json.NewEncoder(w).Encode(fines)
+	if err != nil {
+		http.Error(w, "Error al codificar la respuesta", http.StatusInternalServerError)
+	}
 }
 
 func (app *application) getUserActiveReservationsHandler(w http.ResponseWriter, r *http.Request) {
-	// Lógica para obtener reservas activas del usuario
+	// Validar que el método sea GET
+	if r.Method != http.MethodGet {
+		http.Error(w, "Método no permitido", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Obtener el parámetro del usuario desde la URL
+	usuarioID := r.URL.Query().Get("usuario_id")
+	if usuarioID == "" {
+		http.Error(w, "El parámetro 'usuario_id' es obligatorio", http.StatusBadRequest)
+		return
+	}
+
+	// Construir consulta SQL para obtener las reservas activas del usuario
+	query := `
+		SELECT 
+			reserva.idreserva,
+			reserva.idsocio,
+			reserva.idlibro,
+			reserva.fechareserva,
+			reserva.estado
+		FROM 
+			reserva
+		WHERE 
+			reserva.idsocio = ? AND reserva.estado = 'activa'
+	`
+
+	// Ejecutar la consulta
+	rows, err := app.db.Query(query, usuarioID)
+	if err != nil {
+		http.Error(w, "Error ejecutando consulta", http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	// Definir la estructura para las reservas
+	type Reservation struct {
+		IDReserva    int    `json:"id_reserva"`
+		IDSocio      int    `json:"id_socio"`
+		IDLibro      int    `json:"id_libro"`
+		FechaReserva string `json:"fecha_reserva"`
+		Estado       string `json:"estado"`
+	}
+
+	var reservations []Reservation
+
+	// Procesar resultados
+	for rows.Next() {
+		var reservation Reservation
+		err := rows.Scan(&reservation.IDReserva, &reservation.IDSocio, &reservation.IDLibro, &reservation.FechaReserva, &reservation.Estado)
+		if err != nil {
+			http.Error(w, "Error al leer los resultados", http.StatusInternalServerError)
+			return
+		}
+		reservations = append(reservations, reservation)
+	}
+
+	if err := rows.Err(); err != nil {
+		http.Error(w, "Error durante la iteración de filas", http.StatusInternalServerError)
+		return
+	}
+
+	// Si no hay resultados, enviar mensaje claro
+	if len(reservations) == 0 {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(map[string]string{"message": "No hay reservas activas para este usuario"})
+		return
+	}
+
+	// Responder con los resultados en formato JSON
+	w.Header().Set("Content-Type", "application/json")
+	err = json.NewEncoder(w).Encode(reservations)
+	if err != nil {
+		http.Error(w, "Error al codificar la respuesta", http.StatusInternalServerError)
+	}
 }
 
 func (app *application) loginHandler(w http.ResponseWriter, r *http.Request) {
-	// Lógica para login
+
+	// Estructura para la solicitud de inicio de sesión
+	type Credentials struct {
+		Correo     string `json:"correo"`
+		Contrasena string `json:"contrasena"`
+	}
+
+	// Estructura para el usuario
+	type Usuario struct {
+		ID       int    `json:"id"`
+		Nombre   string `json:"nombre"`
+		Rol      string `json:"rol"`
+		Password string `json:"password"`
+	}
+
+	// Asegurarse de que el método sea POST
+	if r.Method != http.MethodPost {
+		http.Error(w, "Método no permitido", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Decodificar el cuerpo JSON de la solicitud
+	var credentials Credentials
+	err := json.NewDecoder(r.Body).Decode(&credentials)
+	if err != nil {
+		http.Error(w, "Error al leer el cuerpo de la solicitud", http.StatusBadRequest)
+		return
+	}
+
+	// Consulta para obtener la información del usuario
+	query := `
+		SELECT socio.idsocio, socio.nombre, socio.rol, usuariopassword.hash_contrasena
+		FROM socio
+		JOIN usuariopassword ON socio.idsocio = usuariopassword.idusuario
+		WHERE socio.correo = ?
+	`
+
+	var usuario Usuario
+	err = app.db.QueryRow(query, credentials.Correo).Scan(&usuario.ID, &usuario.Nombre, &usuario.Rol, &usuario.Password)
+	fmt.Println(usuario)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			
+
+			http.Error(w, "Correo o contraseña incorrectos", http.StatusUnauthorized)
+		} else {
+			http.Error(w, "Error en la consulta de usuario", http.StatusInternalServerError)
+		}
+		return
+	}
+
+	// Función para encriptar la contraseña usando SHA-256
+	hashPassword := func(password string) string {
+		// Generar el hash de la contraseña utilizando SHA-256
+		hash := sha256.New()
+		hash.Write([]byte(password))
+		return fmt.Sprintf("%x", hash.Sum(nil)) // Retornar el hash como cadena hex
+	}
+
+	// Verificar si la contraseña es correcta usando SHA-256
+	hashedPassword := hashPassword(credentials.Contrasena)
+	if hashedPassword != usuario.Password {
+		http.Error(w, "Correo o contraseña incorrectos", http.StatusUnauthorized)
+		//return
+	}
+
+	// Responder con el usuario autenticado y su rol
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"id":     usuario.ID,
+		"nombre": usuario.Nombre,
+		"rol":    usuario.Rol,
+	})
 }
 
 func (app *application) registerHandler(w http.ResponseWriter, r *http.Request) {
