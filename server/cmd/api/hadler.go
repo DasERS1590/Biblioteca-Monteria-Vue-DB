@@ -395,7 +395,81 @@ func (app *application) getActiveReservationsHandler(w http.ResponseWriter, r *h
 }
 
 func (app *application) getUserLoanHistoryHandler(w http.ResponseWriter, r *http.Request) {
-	// Lógica para obtener historial completo de préstamos por usuario
+	idUsuario := r.URL.Query().Get("idsocio")
+
+	query := `
+		SELECT 
+			prestamo.idprestamo,
+			prestamo.idsocio,
+			prestamo.idlibro,
+			prestamo.fechaprestamo,
+			prestamo.fechadevolucion,
+			prestamo.estado,
+			libro.titulo AS titulo_libro
+		FROM 
+			prestamo
+		INNER JOIN 
+			libro ON prestamo.idlibro = libro.idlibro
+		WHERE 
+			prestamo.idsocio = ?
+		ORDER BY 
+			prestamo.fechaprestamo DESC
+	`
+
+	rows , err := app.db.Query(query , idUsuario)
+
+	if err != nil {
+		http.Error(w, "Error ejecutando consulta", http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	type Loan struct {
+		IDPrestamo     int    `json:"id_prestamo"`
+		IDUsuario      int    `json:"id_usuario"`
+		IDLibro        int    `json:"id_libro"`
+		TituloLibro    string `json:"titulo_libro"`
+		FechaPrestamo  string `json:"fecha_prestamo"`
+		FechaDevolucion string `json:"fecha_devolucion"`
+		Estado         string `json:"estado"`
+	}
+
+	loans := make([]Loan , 0)
+
+	for rows.Next() {
+		var loan Loan
+		err := rows.Scan(
+			&loan.IDPrestamo,
+			&loan.IDUsuario,
+			&loan.IDLibro,
+			&loan.FechaPrestamo,
+			&loan.FechaDevolucion,
+			&loan.Estado,
+			&loan.TituloLibro,
+		)
+		if err != nil {
+			http.Error(w, "Error al leer los resultados", http.StatusInternalServerError)
+			return
+		}
+		loans = append(loans, loan)
+	}
+
+	if err := rows.Err(); err != nil {
+		http.Error(w, "Error durante la iteración de filas", http.StatusInternalServerError)
+		return
+	}
+	if len(loans) == 0 {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(map[string]string{"message": "No hay préstamos registrados para este usuario"})
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	err = json.NewEncoder(w).Encode(loans)
+	if err != nil {
+		http.Error(w, "Error al codificar la respuesta", http.StatusInternalServerError)
+	}
 }
 
 func (app application) getBooksByGenreAndAuthorHandler(w http.ResponseWriter, r *http.Request) {
