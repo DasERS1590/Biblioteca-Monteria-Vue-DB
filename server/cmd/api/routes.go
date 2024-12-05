@@ -28,16 +28,15 @@ func (app *application) routes() http.Handler {
 	mux.HandleFunc("GET /api/reservations", app.getUserActiveReservationsHandler) // GET
 
 
-	// Rutas de Autenticación
-	mux.HandleFunc("POST /api/login", app.loginHandler)       // POST - Iniciar sesión
-	mux.HandleFunc("POST /api/register", app.registerHandler) // POST - Registrar nuevo usuario
+	mux.HandleFunc("POST /api/login", app.loginHandler)     
+	mux.HandleFunc("POST /api/register", app.registerHandler) 
 
 	// Rutas de Gestión de Usuarios
-	mux.HandleFunc("PUT /api/admin/users/{id}", app.updateUserHandler)    // PUT - Actualizar usuario
-	mux.HandleFunc("DELETE /api/admin/users/{id}", app.deleteUserHandler) // DELETE - Eliminar usuario
+	//mux.HandleFunc("PUT /api/admin/users/{id}", app.updateUserHandler)    // PUT - Actualizar usuario
+	//mux.HandleFunc("DELETE /api/admin/users/{id}", app.deleteUserHandler) // DELETE - Eliminar usuario
 
 	// Rutas de Gestión de Libros
-	mux.HandleFunc("POST /api/admin/books", app.createBookHandler)       // POST - Crear nuevo libro
+	mux.HandleFunc("POST /api/admin/books", app.createBookHandler)       
 	mux.HandleFunc("PUT /api/admin/books/{id}", app.updateBookHandler)   // PUT - Actualizar libro
 	mux.HandleFunc("DELTE /api/admin/books/{id}", app.deleteBookHandler) // DELETE - Eliminar libro
 
@@ -48,11 +47,12 @@ func (app *application) routes() http.Handler {
 	mux.HandleFunc("POST /api/loans/extend/{id}", app.extendLoanHandler) // POST - Extender préstamo
 
 	// Rutas de Notificaciones
-	mux.HandleFunc("GET /api/notifications", app.getNotificationsHandler) // GET - Obtener notificaciones
+	//mux.HandleFunc("GET /api/notifications", app.getNotificationsHandler) // GET - Obtener notificaciones
 
 
 	c := cors.New(cors.Options{
-        AllowedOrigins:   []string{"http://127.0.0.1:3000"}, // Dominios permitidos
+        //AllowedOrigins:   []string{"http://127.0.0.1:3000"}, // Dominios permitidos
+        AllowedOrigins:   []string{"http://localhost:3000"},
         AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
         AllowedHeaders:   []string{"Content-Type", "Authorization"},
         AllowCredentials: true,

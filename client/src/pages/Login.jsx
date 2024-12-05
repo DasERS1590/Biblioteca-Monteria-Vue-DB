@@ -32,6 +32,10 @@ const Login = () => {
 
       const data = await response.json();
 
+      // para guardar en local store 
+      localStorage.setItem("user", JSON.stringify(data));
+      console.log("Usuario autenticado:", data);
+
       if (data.rol === "administrador") {
         navigate("/admin/dashboard");
       } else {
@@ -79,3 +83,18 @@ const Login = () => {
 };
 
 export default Login;
+
+
+
+
+/*
+
+para recuperar el localestorage
+const user = JSON.parse(localStorage.getItem("user"));
+
+if (user) {
+  console.log("Usuario logueado:", user);
+  console.log("Rol del usuario:", user.rol);
+}
+
+*/

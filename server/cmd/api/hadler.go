@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
+	"time"
 )
 
 func (app *application) home(w http.ResponseWriter, r *http.Request) {
@@ -1087,7 +1089,6 @@ func (app *application) loginHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Println(usuario)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			
 
 			http.Error(w, "Correo o contraseña incorrectos", http.StatusUnauthorized)
 		} else {
@@ -1121,23 +1122,235 @@ func (app *application) loginHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *application) registerHandler(w http.ResponseWriter, r *http.Request) {
-	// Lógica para registrar usuario
-}
+	// Validar el método HTTP
+	if r.Method != http.MethodPost {
+		http.Error(w, "Método no permitido", http.StatusMethodNotAllowed)
+		return
+	}
 
-func (app *application) updateUserHandler(w http.ResponseWriter, r *http.Request) {
-	// Lógica para actualizar usuario
-}
+	// Estructura para el registro de usuario
+	type RegisterRequest struct {
+		Nombre          string `json:"nombre"`
+		Direccion       string `json:"direccion"`
+		Telefono        string `json:"telefono"`
+		Correo          string `json:"correo"`
+		FechaNacimiento string `json:"fecha_nacimiento"` // Formato: YYYY-MM-DD
+		TipoSocio       string `json:"tipo_socio"`
+		Contrasena      string `json:"contrasena"`
+		Rol             string `json:"rol"` // Usuario o administrador
+	}
 
-func (app *application) deleteUserHandler(w http.ResponseWriter, r *http.Request) {
-	// Lógica para eliminar usuario
+	// Decodificar el cuerpo JSON
+	var req RegisterRequest
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		http.Error(w, "Error al decodificar la solicitud", http.StatusBadRequest)
+		return
+	}
+
+	// Validar campos requeridos
+	if req.Nombre == "" || req.Direccion == "" || req.Telefono == "" || req.Correo == "" ||
+		req.FechaNacimiento == "" || req.TipoSocio == "" || req.Contrasena == "" || req.Rol == "" {
+		http.Error(w, "Todos los campos son obligatorios", http.StatusBadRequest)
+		return
+	}
+
+	// Validar el rol
+	if req.Rol != "usuario" && req.Rol != "administrador" {
+		http.Error(w, "El campo 'rol' debe ser 'usuario' o 'administrador'", http.StatusBadRequest)
+		return
+	}
+
+	// Validar formato de la fecha de nacimiento
+	_, err = time.Parse("2006-01-02", req.FechaNacimiento)
+	if err != nil {
+		http.Error(w, "El formato de la fecha de nacimiento debe ser YYYY-MM-DD", http.StatusBadRequest)
+		return
+	}
+
+	// Verificar que el correo no esté registrado
+	var existingID int
+	queryCheck := "SELECT idsocio FROM socio WHERE correo = ?"
+	err = app.db.QueryRow(queryCheck, req.Correo).Scan(&existingID)
+	if err == nil {
+		http.Error(w, "El correo ya está registrado", http.StatusConflict)
+		return
+	} else if err != sql.ErrNoRows {
+		http.Error(w, "Error al verificar el correo", http.StatusInternalServerError)
+		return
+	}
+
+	var lastID int
+	queryGetLastID := "SELECT MAX(idsocio) FROM socio"
+	err = app.db.QueryRow(queryGetLastID).Scan(&lastID)
+	if err != nil && err != sql.ErrNoRows {
+		http.Error(w, "Error al obtener el último ID", http.StatusInternalServerError)
+		return
+	}
+
+	// Calcular el nuevo ID, incrementando el último ID por 1
+	newID := lastID + 1
+
+	// Insertar el nuevo usuario en la tabla `socio` con el ID manual
+	queryInsertSocio := `
+		INSERT INTO socio (idsocio, nombre, direccion, telefono, correo, fechanacimiento, tiposocio, fecharegistro, imagenperfil, rol)
+		VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), ?, ?)
+	`
+	_, err = app.db.Exec(queryInsertSocio, newID, req.Nombre, req.Direccion, req.Telefono, req.Correo, req.FechaNacimiento, req.TipoSocio, "NULL", req.Rol)
+
+	if err != nil {
+		http.Error(w, "Error al registrar el usuario", http.StatusInternalServerError)
+		fmt.Println(err)
+		return
+	}
+
+	// El nuevo ID ya está asignado
+	userID := newID
+
+	// Función para encriptar la contraseña usando SHA-256
+	hashPassword := func(password string) string {
+		hash := sha256.New()
+		hash.Write([]byte(password))
+		return fmt.Sprintf("%x", hash.Sum(nil))
+	}
+
+	// Insertar la contraseña en la tabla `usuariopassword`
+	hashedPassword := hashPassword(req.Contrasena)
+	queryInsertPassword := `
+	INSERT INTO usuariopassword (idusuario, hash_contrasena)
+	VALUES (?, ?)
+`
+	_, err = app.db.Exec(queryInsertPassword, userID, hashedPassword)
+	if err != nil {
+		http.Error(w, "Error al guardar la contraseña del usuario", http.StatusInternalServerError)
+		return
+	}
+
+	// Responder con éxito
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"message": "Usuario registrado exitosamente",
+		"id":      userID,
+	})
+
 }
 
 func (app *application) createBookHandler(w http.ResponseWriter, r *http.Request) {
-	// Lógica para crear un nuevo libro
+	var newBook struct {
+		IdLibro          int    `json:"idlibro"`
+		Titulo           string `json:"titulo"`
+		Genero           string `json:"genero"`
+		FechaPublicacion string `json:"fechapublicacion"`
+		EditorialID      int    `json:"ideditorial"`
+		Autores          []int  `json:"autores"` // Lista de IDs de autores
+	}
+
+	// Decodificar el cuerpo del request JSON
+	err := json.NewDecoder(r.Body).Decode(&newBook)
+	if err != nil {
+		http.Error(w, "Error al procesar la solicitud", http.StatusBadRequest)
+		return
+	}
+
+	// Genera un nuevo ID único para el libro
+	newBook.IdLibro = generateNewId(app, "libro", "idlibro")
+
+	// Inserción del nuevo libro
+	insertBookQuery := `
+        INSERT INTO libro (idlibro, titulo, genero, fechapublicacion, estado, ideditorial)
+        VALUES (?, ?, ?, ?, 'disponible', ?)`
+
+	_, err = app.db.Exec(insertBookQuery, newBook.IdLibro, newBook.Titulo, newBook.Genero, newBook.FechaPublicacion, newBook.EditorialID)
+	if err != nil {
+		http.Error(w, "Error al insertar el libro", http.StatusInternalServerError)
+		return
+	}
+
+	// Insertar la relación de los autores con el libro
+	for _, autorID := range newBook.Autores {
+		insertAuthorQuery := `
+            INSERT INTO libro_autor (idlibro, idautor)
+            VALUES (?, ?)`
+
+		_, err = app.db.Exec(insertAuthorQuery, newBook.IdLibro, autorID)
+		if err != nil {
+			http.Error(w, "Error al asociar el autor al libro", http.StatusInternalServerError)
+			return
+		}
+	}
+
+	// Retornar respuesta
+	w.WriteHeader(http.StatusCreated)
+	w.Write([]byte("Libro creado exitosamente"))
 }
 
 func (app *application) updateBookHandler(w http.ResponseWriter, r *http.Request) {
-	// Lógica para actualizar libro
+	// Extraer el ID del libro de la URL
+	bookID := strings.TrimPrefix(r.URL.Path, "/api/admin/books/")
+	
+	if bookID == "" {
+		http.Error(w, "ID del libro no proporcionado", http.StatusBadRequest)
+		return
+	}
+
+
+	var updatedBook struct {
+		Titulo           string `json:"titulo"`
+		Genero           string `json:"genero"`
+		FechaPublicacion string `json:"fechapublicacion"`
+		EditorialID      int    `json:"ideditorial"`
+		Autores          []int  `json:"autores"` // Lista de IDs de autores
+	}
+
+	// Decodificar el cuerpo del request JSON
+	if err := json.NewDecoder(r.Body).Decode(&updatedBook); err != nil {
+		http.Error(w, "Error al procesar la solicitud", http.StatusBadRequest)
+		return
+	}
+	defer r.Body.Close() // Asegurarse de cerrar el cuerpo del request
+
+	// Verificar si el libro existe
+	var existingBookCount int
+	checkBookQuery := `SELECT COUNT(*) FROM libro WHERE idlibro = ?`
+	if err := app.db.QueryRow(checkBookQuery, bookID).Scan(&existingBookCount); err != nil || existingBookCount == 0 {
+		http.Error(w, "Libro no encontrado", http.StatusNotFound)
+		return
+	}
+
+	// Actualizar los datos del libro
+	updateBookQuery := `
+			UPDATE libro
+			SET titulo = ?, genero = ?, fechapublicacion = ?, ideditorial = ?
+			WHERE idlibro = ?`
+
+	if _, err := app.db.Exec(updateBookQuery, updatedBook.Titulo, updatedBook.Genero, updatedBook.FechaPublicacion, updatedBook.EditorialID, bookID); err != nil {
+		http.Error(w, "Error al actualizar el libro", http.StatusInternalServerError)
+		return
+	}
+
+	// Eliminar asociaciones anteriores de autores
+	deleteAuthorsQuery := `DELETE FROM libro_autor WHERE idlibro = ?`
+	if _, err := app.db.Exec(deleteAuthorsQuery, bookID); err != nil {
+		http.Error(w, "Error al eliminar las asociaciones de autores", http.StatusInternalServerError)
+		return
+	}
+
+	// Insertar las nuevas asociaciones de autores
+	for _, autorID := range updatedBook.Autores {
+		insertAuthorQuery := `
+				INSERT INTO libro_autor (idlibro, idautor)
+				VALUES (?, ?)`
+
+		if _, err := app.db.Exec(insertAuthorQuery, bookID, autorID); err != nil {
+			http.Error(w, "Error al asociar el autor al libro", http.StatusInternalServerError)
+			return
+		}
+	}
+
+	// Retornar respuesta exitosa
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("Libro actualizado exitosamente"))
 }
 
 func (app *application) deleteBookHandler(w http.ResponseWriter, r *http.Request) {
@@ -1152,6 +1365,16 @@ func (app *application) extendLoanHandler(w http.ResponseWriter, r *http.Request
 	// Lógica para extender préstamo
 }
 
-func (app *application) getNotificationsHandler(w http.ResponseWriter, r *http.Request) {
-	// Lógica para obtener notificaciones
+func generateNewId(app *application, tableName string, idColumn string) int {
+	var maxId int
+
+	query := fmt.Sprintf("SELECT MAX(%s) FROM %s", idColumn, tableName)
+
+	row := app.db.QueryRow(query)
+	err := row.Scan(&maxId)
+	if err != nil {
+		maxId = 0
+	}
+
+	return maxId + 1
 }

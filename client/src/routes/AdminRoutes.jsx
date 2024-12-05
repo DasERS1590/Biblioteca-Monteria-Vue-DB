@@ -4,16 +4,20 @@ import AdminDashboard from "../components/Admin/AdminDashboard";
 import AdminItems from "../components/Admin/AdminItems";
 import AdminSettings from "../components/Admin/AdminSettings";
 import AdminLayout from "../components/Layout/AdminLayout";
+import ProtectedRoute from "./ProtectedRoute";
 
 const AdminRoutes = () => {
   return (
-    <AdminLayout>
-      <Routes>
-        <Route path="/dashboard" element={<AdminDashboard />} />
-        <Route path="/items" element={<AdminItems />} />
-        <Route path="/settings" element={<AdminSettings />} />
-      </Routes>
-    </AdminLayout>
+    <ProtectedRoute allowedRoles={["administrador"]}>
+      <AdminLayout>
+        <Routes>
+          <Route path="/dashboard" element={<AdminDashboard />} />
+          <Route path="/items" element={<AdminItems />} />
+          <Route path="/settings" element={<AdminSettings />} />
+        </Routes>
+      </AdminLayout>
+      </ProtectedRoute >
+
   );
 };
 
