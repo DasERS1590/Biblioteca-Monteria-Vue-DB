@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -1236,56 +1237,120 @@ func (app *application) registerHandler(w http.ResponseWriter, r *http.Request) 
 }
 
 func (app *application) createBookHandler(w http.ResponseWriter, r *http.Request) {
-    var newBook struct {
-        IdLibro         int      `json:"idlibro"`
-        Titulo          string   `json:"titulo"`
-        Genero          string   `json:"genero"`
-        FechaPublicacion string   `json:"fechapublicacion"`
-        EditorialID     int      `json:"ideditorial"`
-        Autores         []int    `json:"autores"` // Lista de IDs de autores
-    }
+	var newBook struct {
+		IdLibro          int    `json:"idlibro"`
+		Titulo           string `json:"titulo"`
+		Genero           string `json:"genero"`
+		FechaPublicacion string `json:"fechapublicacion"`
+		EditorialID      int    `json:"ideditorial"`
+		Autores          []int  `json:"autores"` // Lista de IDs de autores
+	}
 
-    // Decodificar el cuerpo del request JSON
-    err := json.NewDecoder(r.Body).Decode(&newBook)
-    if err != nil {
-        http.Error(w, "Error al procesar la solicitud", http.StatusBadRequest)
-        return
-    }
+	// Decodificar el cuerpo del request JSON
+	err := json.NewDecoder(r.Body).Decode(&newBook)
+	if err != nil {
+		http.Error(w, "Error al procesar la solicitud", http.StatusBadRequest)
+		return
+	}
 
-    // Genera un nuevo ID único para el libro
-    newBook.IdLibro = generateNewId(app, "libro", "idlibro")
+	// Genera un nuevo ID único para el libro
+	newBook.IdLibro = generateNewId(app, "libro", "idlibro")
 
-    // Inserción del nuevo libro
-    insertBookQuery := `
+	// Inserción del nuevo libro
+	insertBookQuery := `
         INSERT INTO libro (idlibro, titulo, genero, fechapublicacion, estado, ideditorial)
         VALUES (?, ?, ?, ?, 'disponible', ?)`
-    
-    _, err = app.db.Exec(insertBookQuery, newBook.IdLibro, newBook.Titulo, newBook.Genero, newBook.FechaPublicacion, newBook.EditorialID)
-    if err != nil {
-        http.Error(w, "Error al insertar el libro", http.StatusInternalServerError)
-        return
-    }
 
-    // Insertar la relación de los autores con el libro
-    for _, autorID := range newBook.Autores {
-        insertAuthorQuery := `
+	_, err = app.db.Exec(insertBookQuery, newBook.IdLibro, newBook.Titulo, newBook.Genero, newBook.FechaPublicacion, newBook.EditorialID)
+	if err != nil {
+		http.Error(w, "Error al insertar el libro", http.StatusInternalServerError)
+		return
+	}
+
+	// Insertar la relación de los autores con el libro
+	for _, autorID := range newBook.Autores {
+		insertAuthorQuery := `
             INSERT INTO libro_autor (idlibro, idautor)
             VALUES (?, ?)`
-        
-        _, err = app.db.Exec(insertAuthorQuery, newBook.IdLibro, autorID)
-        if err != nil {
-            http.Error(w, "Error al asociar el autor al libro", http.StatusInternalServerError)
-            return
-        }
-    }
 
-    // Retornar respuesta
-    w.WriteHeader(http.StatusCreated)
-    w.Write([]byte("Libro creado exitosamente"))
+		_, err = app.db.Exec(insertAuthorQuery, newBook.IdLibro, autorID)
+		if err != nil {
+			http.Error(w, "Error al asociar el autor al libro", http.StatusInternalServerError)
+			return
+		}
+	}
+
+	// Retornar respuesta
+	w.WriteHeader(http.StatusCreated)
+	w.Write([]byte("Libro creado exitosamente"))
 }
 
 func (app *application) updateBookHandler(w http.ResponseWriter, r *http.Request) {
-	// Lógica para actualizar libro
+	// Extraer el ID del libro de la URL
+	bookID := strings.TrimPrefix(r.URL.Path, "/api/admin/books/")
+	
+	if bookID == "" {
+		http.Error(w, "ID del libro no proporcionado", http.StatusBadRequest)
+		return
+	}
+
+
+	var updatedBook struct {
+		Titulo           string `json:"titulo"`
+		Genero           string `json:"genero"`
+		FechaPublicacion string `json:"fechapublicacion"`
+		EditorialID      int    `json:"ideditorial"`
+		Autores          []int  `json:"autores"` // Lista de IDs de autores
+	}
+
+	// Decodificar el cuerpo del request JSON
+	if err := json.NewDecoder(r.Body).Decode(&updatedBook); err != nil {
+		http.Error(w, "Error al procesar la solicitud", http.StatusBadRequest)
+		return
+	}
+	defer r.Body.Close() // Asegurarse de cerrar el cuerpo del request
+
+	// Verificar si el libro existe
+	var existingBookCount int
+	checkBookQuery := `SELECT COUNT(*) FROM libro WHERE idlibro = ?`
+	if err := app.db.QueryRow(checkBookQuery, bookID).Scan(&existingBookCount); err != nil || existingBookCount == 0 {
+		http.Error(w, "Libro no encontrado", http.StatusNotFound)
+		return
+	}
+
+	// Actualizar los datos del libro
+	updateBookQuery := `
+			UPDATE libro
+			SET titulo = ?, genero = ?, fechapublicacion = ?, ideditorial = ?
+			WHERE idlibro = ?`
+
+	if _, err := app.db.Exec(updateBookQuery, updatedBook.Titulo, updatedBook.Genero, updatedBook.FechaPublicacion, updatedBook.EditorialID, bookID); err != nil {
+		http.Error(w, "Error al actualizar el libro", http.StatusInternalServerError)
+		return
+	}
+
+	// Eliminar asociaciones anteriores de autores
+	deleteAuthorsQuery := `DELETE FROM libro_autor WHERE idlibro = ?`
+	if _, err := app.db.Exec(deleteAuthorsQuery, bookID); err != nil {
+		http.Error(w, "Error al eliminar las asociaciones de autores", http.StatusInternalServerError)
+		return
+	}
+
+	// Insertar las nuevas asociaciones de autores
+	for _, autorID := range updatedBook.Autores {
+		insertAuthorQuery := `
+				INSERT INTO libro_autor (idlibro, idautor)
+				VALUES (?, ?)`
+
+		if _, err := app.db.Exec(insertAuthorQuery, bookID, autorID); err != nil {
+			http.Error(w, "Error al asociar el autor al libro", http.StatusInternalServerError)
+			return
+		}
+	}
+
+	// Retornar respuesta exitosa
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("Libro actualizado exitosamente"))
 }
 
 func (app *application) deleteBookHandler(w http.ResponseWriter, r *http.Request) {
@@ -1300,17 +1365,16 @@ func (app *application) extendLoanHandler(w http.ResponseWriter, r *http.Request
 	// Lógica para extender préstamo
 }
 
-
 func generateNewId(app *application, tableName string, idColumn string) int {
-    var maxId int
+	var maxId int
 
-    query := fmt.Sprintf("SELECT MAX(%s) FROM %s", idColumn, tableName)
-    
-    row := app.db.QueryRow(query)
-    err := row.Scan(&maxId)
-    if err != nil {
-        maxId = 0
-    }
+	query := fmt.Sprintf("SELECT MAX(%s) FROM %s", idColumn, tableName)
 
-    return maxId + 1
+	row := app.db.QueryRow(query)
+	err := row.Scan(&maxId)
+	if err != nil {
+		maxId = 0
+	}
+
+	return maxId + 1
 }
