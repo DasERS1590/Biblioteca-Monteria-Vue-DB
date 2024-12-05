@@ -1235,16 +1235,53 @@ func (app *application) registerHandler(w http.ResponseWriter, r *http.Request) 
 
 }
 
-func (app *application) updateUserHandler(w http.ResponseWriter, r *http.Request) {
-	// Lógica para actualizar usuario
-}
-
-func (app *application) deleteUserHandler(w http.ResponseWriter, r *http.Request) {
-	// Lógica para eliminar usuario
-}
-
 func (app *application) createBookHandler(w http.ResponseWriter, r *http.Request) {
-	// Lógica para crear un nuevo libro
+    var newBook struct {
+        IdLibro         int      `json:"idlibro"`
+        Titulo          string   `json:"titulo"`
+        Genero          string   `json:"genero"`
+        FechaPublicacion string   `json:"fechapublicacion"`
+        EditorialID     int      `json:"ideditorial"`
+        Autores         []int    `json:"autores"` // Lista de IDs de autores
+    }
+
+    // Decodificar el cuerpo del request JSON
+    err := json.NewDecoder(r.Body).Decode(&newBook)
+    if err != nil {
+        http.Error(w, "Error al procesar la solicitud", http.StatusBadRequest)
+        return
+    }
+
+    // Genera un nuevo ID único para el libro
+    newBook.IdLibro = generateNewId(app, "libro", "idlibro")
+
+    // Inserción del nuevo libro
+    insertBookQuery := `
+        INSERT INTO libro (idlibro, titulo, genero, fechapublicacion, estado, ideditorial)
+        VALUES (?, ?, ?, ?, 'disponible', ?)`
+    
+    _, err = app.db.Exec(insertBookQuery, newBook.IdLibro, newBook.Titulo, newBook.Genero, newBook.FechaPublicacion, newBook.EditorialID)
+    if err != nil {
+        http.Error(w, "Error al insertar el libro", http.StatusInternalServerError)
+        return
+    }
+
+    // Insertar la relación de los autores con el libro
+    for _, autorID := range newBook.Autores {
+        insertAuthorQuery := `
+            INSERT INTO libro_autor (idlibro, idautor)
+            VALUES (?, ?)`
+        
+        _, err = app.db.Exec(insertAuthorQuery, newBook.IdLibro, autorID)
+        if err != nil {
+            http.Error(w, "Error al asociar el autor al libro", http.StatusInternalServerError)
+            return
+        }
+    }
+
+    // Retornar respuesta
+    w.WriteHeader(http.StatusCreated)
+    w.Write([]byte("Libro creado exitosamente"))
 }
 
 func (app *application) updateBookHandler(w http.ResponseWriter, r *http.Request) {
@@ -1263,6 +1300,17 @@ func (app *application) extendLoanHandler(w http.ResponseWriter, r *http.Request
 	// Lógica para extender préstamo
 }
 
-func (app *application) getNotificationsHandler(w http.ResponseWriter, r *http.Request) {
-	// Lógica para obtener notificaciones
+
+func generateNewId(app *application, tableName string, idColumn string) int {
+    var maxId int
+
+    query := fmt.Sprintf("SELECT MAX(%s) FROM %s", idColumn, tableName)
+    
+    row := app.db.QueryRow(query)
+    err := row.Scan(&maxId)
+    if err != nil {
+        maxId = 0
+    }
+
+    return maxId + 1
 }
