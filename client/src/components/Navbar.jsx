@@ -25,6 +25,8 @@ const Navbar = ({ isAdmin }) => {
             <li><Link to="/admin/loans">Préstamos</Link></li>
             <li><Link to="/admin/fines">Multas</Link></li>
             <li><Link to="/admin/reservations">Reservas</Link></li>
+            <li><Link to="/admin/register">Registar Usuario </Link></li>
+            
 
           </>
         ) : (
