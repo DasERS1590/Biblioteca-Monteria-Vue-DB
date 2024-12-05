@@ -31,23 +31,16 @@ func (app *application) routes() http.Handler {
 	mux.HandleFunc("POST /api/login", app.loginHandler)     
 	mux.HandleFunc("POST /api/register", app.registerHandler) 
 
-	// Rutas de Gestión de Usuarios
-	//mux.HandleFunc("PUT /api/admin/users/{id}", app.updateUserHandler)    // PUT - Actualizar usuario
-	//mux.HandleFunc("DELETE /api/admin/users/{id}", app.deleteUserHandler) // DELETE - Eliminar usuario
-
 	// Rutas de Gestión de Libros
 	mux.HandleFunc("POST /api/admin/books", app.createBookHandler)       
-	mux.HandleFunc("PUT /api/admin/books/{id}", app.updateBookHandler)   // PUT - Actualizar libro
-	mux.HandleFunc("DELTE /api/admin/books/{id}", app.deleteBookHandler) // DELETE - Eliminar libro
+	mux.HandleFunc("PUT /api/admin/books/{id}", app.updateBookHandler)   
 
 	// Rutas de Gestión de Reservas
-	mux.HandleFunc("DELETE /api/reservations/{id}", app.cancelReservationHandler) // DELETE - Cancelar reserva
-
+	mux.HandleFunc("POST /api/reservation", app.createReservation)
+	mux.HandleFunc("DELETE /api/reservations/{id}", app.cancelReservationHandler) 
+	
 	// Rutas de Gestión de Préstamos
 	mux.HandleFunc("POST /api/loans/extend/{id}", app.extendLoanHandler) // POST - Extender préstamo
-
-	// Rutas de Notificaciones
-	//mux.HandleFunc("GET /api/notifications", app.getNotificationsHandler) // GET - Obtener notificaciones
 
 
 	c := cors.New(cors.Options{
