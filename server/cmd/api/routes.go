@@ -28,9 +28,8 @@ func (app *application) routes() http.Handler {
 	mux.HandleFunc("GET /api/reservations", app.getUserActiveReservationsHandler) // GET
 
 
-	// Rutas de Autenticación
-	mux.HandleFunc("POST /api/login", app.loginHandler)       // POST - Iniciar sesión
-	mux.HandleFunc("POST /api/register", app.registerHandler) // POST - Registrar nuevo usuario
+	mux.HandleFunc("POST /api/login", app.loginHandler)     
+	mux.HandleFunc("POST /api/register", app.registerHandler) 
 
 	// Rutas de Gestión de Usuarios
 	mux.HandleFunc("PUT /api/admin/users/{id}", app.updateUserHandler)    // PUT - Actualizar usuario
@@ -52,7 +51,8 @@ func (app *application) routes() http.Handler {
 
 
 	c := cors.New(cors.Options{
-        AllowedOrigins:   []string{"http://127.0.0.1:3000"}, // Dominios permitidos
+        //AllowedOrigins:   []string{"http://127.0.0.1:3000"}, // Dominios permitidos
+        AllowedOrigins:   []string{"http://localhost:3000"},
         AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
         AllowedHeaders:   []string{"Content-Type", "Authorization"},
         AllowCredentials: true,

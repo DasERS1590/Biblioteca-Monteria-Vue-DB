@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"time"
 )
 
 func (app *application) home(w http.ResponseWriter, r *http.Request) {
@@ -1087,7 +1088,6 @@ func (app *application) loginHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Println(usuario)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			
 
 			http.Error(w, "Correo o contraseña incorrectos", http.StatusUnauthorized)
 		} else {
@@ -1121,7 +1121,118 @@ func (app *application) loginHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *application) registerHandler(w http.ResponseWriter, r *http.Request) {
-	// Lógica para registrar usuario
+	// Validar el método HTTP
+	if r.Method != http.MethodPost {
+		http.Error(w, "Método no permitido", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Estructura para el registro de usuario
+	type RegisterRequest struct {
+		Nombre          string `json:"nombre"`
+		Direccion       string `json:"direccion"`
+		Telefono        string `json:"telefono"`
+		Correo          string `json:"correo"`
+		FechaNacimiento string `json:"fecha_nacimiento"` // Formato: YYYY-MM-DD
+		TipoSocio       string `json:"tipo_socio"`
+		Contrasena      string `json:"contrasena"`
+		Rol             string `json:"rol"` // Usuario o administrador
+	}
+
+	// Decodificar el cuerpo JSON
+	var req RegisterRequest
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		http.Error(w, "Error al decodificar la solicitud", http.StatusBadRequest)
+		return
+	}
+
+	// Validar campos requeridos
+	if req.Nombre == "" || req.Direccion == "" || req.Telefono == "" || req.Correo == "" ||
+		req.FechaNacimiento == "" || req.TipoSocio == "" || req.Contrasena == "" || req.Rol == "" {
+		http.Error(w, "Todos los campos son obligatorios", http.StatusBadRequest)
+		return
+	}
+
+	// Validar el rol
+	if req.Rol != "usuario" && req.Rol != "administrador" {
+		http.Error(w, "El campo 'rol' debe ser 'usuario' o 'administrador'", http.StatusBadRequest)
+		return
+	}
+
+	// Validar formato de la fecha de nacimiento
+	_, err = time.Parse("2006-01-02", req.FechaNacimiento)
+	if err != nil {
+		http.Error(w, "El formato de la fecha de nacimiento debe ser YYYY-MM-DD", http.StatusBadRequest)
+		return
+	}
+
+	// Verificar que el correo no esté registrado
+	var existingID int
+	queryCheck := "SELECT idsocio FROM socio WHERE correo = ?"
+	err = app.db.QueryRow(queryCheck, req.Correo).Scan(&existingID)
+	if err == nil {
+		http.Error(w, "El correo ya está registrado", http.StatusConflict)
+		return
+	} else if err != sql.ErrNoRows {
+		http.Error(w, "Error al verificar el correo", http.StatusInternalServerError)
+		return
+	}
+
+	var lastID int
+	queryGetLastID := "SELECT MAX(idsocio) FROM socio"
+	err = app.db.QueryRow(queryGetLastID).Scan(&lastID)
+	if err != nil && err != sql.ErrNoRows {
+		http.Error(w, "Error al obtener el último ID", http.StatusInternalServerError)
+		return
+	}
+
+	// Calcular el nuevo ID, incrementando el último ID por 1
+	newID := lastID + 1
+
+	// Insertar el nuevo usuario en la tabla `socio` con el ID manual
+	queryInsertSocio := `
+		INSERT INTO socio (idsocio, nombre, direccion, telefono, correo, fechanacimiento, tiposocio, fecharegistro, imagenperfil, rol)
+		VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), ?, ?)
+	`
+	_, err = app.db.Exec(queryInsertSocio, newID, req.Nombre, req.Direccion, req.Telefono, req.Correo, req.FechaNacimiento, req.TipoSocio, "NULL", req.Rol)
+
+	if err != nil {
+		http.Error(w, "Error al registrar el usuario", http.StatusInternalServerError)
+		fmt.Println(err)
+		return
+	}
+
+	// El nuevo ID ya está asignado
+	userID := newID
+
+	// Función para encriptar la contraseña usando SHA-256
+	hashPassword := func(password string) string {
+		hash := sha256.New()
+		hash.Write([]byte(password))
+		return fmt.Sprintf("%x", hash.Sum(nil))
+	}
+
+	// Insertar la contraseña en la tabla `usuariopassword`
+	hashedPassword := hashPassword(req.Contrasena)
+	queryInsertPassword := `
+	INSERT INTO usuariopassword (idusuario, hash_contrasena)
+	VALUES (?, ?)
+`
+	_, err = app.db.Exec(queryInsertPassword, userID, hashedPassword)
+	if err != nil {
+		http.Error(w, "Error al guardar la contraseña del usuario", http.StatusInternalServerError)
+		return
+	}
+
+	// Responder con éxito
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"message": "Usuario registrado exitosamente",
+		"id":      userID,
+	})
+
 }
 
 func (app *application) updateUserHandler(w http.ResponseWriter, r *http.Request) {
