@@ -5,6 +5,7 @@ import UserLayout from "../components/Layout/UserLayout";
 import ProtectedRoute from "./ProtectedRoute";
 import Libro from "../components/User/Libro";
 import Historial from "../components/User/Historial";
+import Multa from "../components/User/Multas";
 
 const UserRoutes = () => {
   return (
@@ -15,6 +16,7 @@ const UserRoutes = () => {
            
           <Route path="/libro" element={ <Libro/> } />
           <Route path="/historial" element={ <Historial/> } />
+          <Route path="/multa" element = {<Multa/>} />
         </Routes>
       </UserLayout>
     </ProtectedRoute>
