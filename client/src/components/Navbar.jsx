@@ -31,8 +31,12 @@ const Navbar = ({ isAdmin }) => {
           </>
         ) : (
           <>
-            <li><Link to="/user/dashboard">Dashboard</Link></li>
-          
+            <li><Link to="/user/libro"> Libro </Link></li>
+            <li><Link to="/user/historial"> Historial </Link></li>
+            <li><Link to="/user/multa"> Multa </Link></li>
+            <li><Link to="/user/prestamo"> Prestamo </Link></li>
+            <li><Link to="/user/reserva"> Reserva </Link></li>
+
           </>
         )}
         <button onClick={handleLogout} style={{ cursor: "pointer", background: "none", border: "none", color: "blue", textDecoration: "underline" }}>

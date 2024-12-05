@@ -3,6 +3,7 @@ import { Route, Routes } from "react-router-dom";
 
 import UserLayout from "../components/Layout/UserLayout";
 import ProtectedRoute from "./ProtectedRoute";
+import Libro from "../components/User/Libro";
 
 const UserRoutes = () => {
   return (
@@ -11,7 +12,7 @@ const UserRoutes = () => {
       <UserLayout>
         <Routes>
            
-      
+          <Route path="/libro" element={ <Libro/> } />
         </Routes>
       </UserLayout>
     </ProtectedRoute>
