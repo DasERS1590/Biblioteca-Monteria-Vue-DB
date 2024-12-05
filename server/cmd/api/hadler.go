@@ -1288,12 +1288,11 @@ func (app *application) createBookHandler(w http.ResponseWriter, r *http.Request
 func (app *application) updateBookHandler(w http.ResponseWriter, r *http.Request) {
 	// Extraer el ID del libro de la URL
 	bookID := strings.TrimPrefix(r.URL.Path, "/api/admin/books/")
-	
+
 	if bookID == "" {
 		http.Error(w, "ID del libro no proporcionado", http.StatusBadRequest)
 		return
 	}
-
 
 	var updatedBook struct {
 		Titulo           string `json:"titulo"`
@@ -1353,16 +1352,128 @@ func (app *application) updateBookHandler(w http.ResponseWriter, r *http.Request
 	w.Write([]byte("Libro actualizado exitosamente"))
 }
 
-func (app *application) deleteBookHandler(w http.ResponseWriter, r *http.Request) {
-	// Lógica para eliminar libro
+
+func (app *application) createReservation(w http.ResponseWriter, r *http.Request) {
+    var newReservation struct {
+        SocioID   int    `json:"idsocio"`
+        LibroID   int    `json:"idlibro"`
+        FechaReserva string `json:"fechareserva"`
+    }
+
+    err := json.NewDecoder(r.Body).Decode(&newReservation)
+    if err != nil {
+        http.Error(w, "Error al procesar la solicitud", http.StatusBadRequest)
+        return
+    }
+  	
+	newReservationID := generateNewId(app, "reserva", "idreserva")
+
+   insertReservationQuery := `
+        INSERT INTO reserva (idreserva, idsocio, idlibro, fechareserva, estado)
+        VALUES (?, ?, ?, ?, 'activa')`
+
+  _, err = app.db.Exec(insertReservationQuery, newReservationID, newReservation.SocioID, newReservation.LibroID, newReservation.FechaReserva)
+    if err != nil {
+        http.Error(w, "Error al crear la reserva", http.StatusInternalServerError)
+        return
+    }
+
+    w.WriteHeader(http.StatusCreated)
+    w.Write([]byte("Reserva creada exitosamente"))
 }
+
 
 func (app *application) cancelReservationHandler(w http.ResponseWriter, r *http.Request) {
-	// Lógica para cancelar reserva
+ 
+	reservationID := strings.TrimPrefix(r.URL.Path, "/api/reservations/")
+
+	if reservationID == "" {
+		http.Error(w, "ID del reserva no proporcionado", http.StatusBadRequest)
+		return
+	}
+
+    // Consulta para verificar si la reserva existe y está activa
+    var estado string
+    err := app.db.QueryRow("SELECT estado FROM reserva WHERE idreserva = ?", reservationID).Scan(&estado)
+    if err != nil {
+        http.Error(w, "Reserva no encontrada", http.StatusNotFound)
+		fmt.Println(err)
+        return
+    }
+
+    if estado != "activa" {
+        http.Error(w, "No se puede cancelar una reserva que no está activa", http.StatusBadRequest)
+        return
+    }
+
+    // Eliminar la reserva (cambiar su estado a 'cancelada' o eliminarla completamente)
+    updateQuery := "UPDATE reserva SET estado = 'cancelada' WHERE idreserva = ?"
+    _, err = app.db.Exec(updateQuery, reservationID)
+    if err != nil {
+        http.Error(w, "Error al cancelar la reserva", http.StatusInternalServerError)
+        return
+    }
+
+    // Retornar respuesta exitosa
+    w.WriteHeader(http.StatusOK)
+    w.Write([]byte("Reserva cancelada exitosamente"))
 }
 
+// Función para extender préstamo
 func (app *application) extendLoanHandler(w http.ResponseWriter, r *http.Request) {
-	// Lógica para extender préstamo
+    // Extraer el ID del préstamo de la URL
+	reservationID := strings.TrimPrefix(r.URL.Path, "/api/loans/extend/")
+	if reservationID == "" {
+		http.Error(w, "ID del reserva no proporcionado", http.StatusBadRequest)
+		return
+	}
+
+    // Decodificar la nueva fecha de devolución desde el cuerpo de la solicitud
+    var request struct {
+        NuevaFechaDevolucion string `json:"nuevafechadevolucion"`
+    }
+
+    err := json.NewDecoder(r.Body).Decode(&request)
+    if err != nil {
+        http.Error(w, "Error al procesar la solicitud", http.StatusBadRequest)
+        return
+    }
+
+    // Verificar si la fecha proporcionada es válida
+    nuevaFecha, err := time.Parse("2006-01-02", request.NuevaFechaDevolucion)
+    if err != nil {
+        http.Error(w, "Fecha inválida, el formato debe ser AAAA-MM-DD", http.StatusBadRequest)
+        return
+    }
+
+    // Consulta para verificar el préstamo
+    var estado string
+    var fechaDevolucion time.Time
+    err = app.db.QueryRow("SELECT estado, fechadevolucion FROM prestamo WHERE idprestamo = ?", reservationID).Scan(&estado, &fechaDevolucion)
+    if err != nil {
+        http.Error(w, "Préstamo no encontrado", http.StatusNotFound)
+
+		fmt.Println(err)
+        return
+    }
+
+    // Verificar si el préstamo ya ha sido completado
+    if estado == "completado" {
+        http.Error(w, "El préstamo ya está completado, no se puede extender", http.StatusBadRequest)
+        return
+    }
+
+    // Actualizar la fecha de devolución en la base de datos
+    updateQuery := "UPDATE prestamo SET fechadevolucion = ? WHERE idprestamo = ?"
+    _, err = app.db.Exec(updateQuery, nuevaFecha, reservationID)
+    if err != nil {
+        http.Error(w, "Error al extender el préstamo", http.StatusInternalServerError)
+        return
+    }
+
+    // Retornar respuesta exitosa
+    w.WriteHeader(http.StatusOK)
+    w.Write([]byte("Préstamo extendido exitosamente"))
 }
 
 func generateNewId(app *application, tableName string, idColumn string) int {
