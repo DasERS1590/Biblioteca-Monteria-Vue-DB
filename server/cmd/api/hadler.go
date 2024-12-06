@@ -881,6 +881,58 @@ func (app *application) getUserActiveLoanStatusHandler(w http.ResponseWriter, r 
 
 }
 
+
+func (app *application) createLoanHandler(w http.ResponseWriter, r *http.Request) {
+	// Validar que el método sea POST
+	if r.Method != http.MethodPost {
+		http.Error(w, "Método no permitido", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Decodificar el cuerpo de la solicitud JSON
+	var requestBody struct {
+		UsuarioID     int    `json:"usuario_id"`
+		LibroID       int    `json:"libro_id"`
+		FechaPrestamo string `json:"fecha_prestamo"`
+		FechaDevolucion string `json:"fecha_devolucion"`
+	}
+	err := json.NewDecoder(r.Body).Decode(&requestBody)
+	if err != nil {
+		http.Error(w, "Error al decodificar el cuerpo de la solicitud", http.StatusBadRequest)
+		return
+	}
+
+	// Validar que todos los parámetros requeridos estén presentes
+	if requestBody.UsuarioID == 0 || requestBody.LibroID == 0 || requestBody.FechaPrestamo == "" || requestBody.FechaDevolucion == "" {
+		http.Error(w, "Todos los parámetros son obligatorios", http.StatusBadRequest)
+		return
+	}
+
+	// Generar una nueva ID para el préstamo
+	newLoanID := generateNewId(app, "prestamo", "idprestamo")
+
+	// Llamar al procedimiento almacenado para realizar el préstamo, pasando la nueva ID generada
+	_, err = app.db.Exec(
+		"CALL realizarPrestamo(?, ?, ?, ?, ?)",
+		newLoanID,               // Nueva ID del préstamo
+		requestBody.UsuarioID,   // ID del usuario
+		requestBody.LibroID,     // ID del libro
+		requestBody.FechaPrestamo, 
+		requestBody.FechaDevolucion,
+	)
+
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Error al realizar el préstamo: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	// Responder con un mensaje de éxito
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(map[string]string{"message": "Préstamo realizado con éxito"})
+}
+
+
 func (app *application) getUserCompletedLoanHistoryHandler(w http.ResponseWriter, r *http.Request) {
 	// Validar que el método sea GET
 	if r.Method != http.MethodGet {

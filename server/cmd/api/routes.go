@@ -22,6 +22,7 @@ func (app *application) routes() http.Handler {
 
 	// Rutas para Usuario
 	mux.HandleFunc("GET /api/books", app.getBooksAvailableByGenreAndAuthorHandler) 
+	mux.HandleFunc("POST /api/loans", app.createLoanHandler)
 	mux.HandleFunc("GET /api/loans", app.getUserActiveLoanStatusHandler) 
 	mux.HandleFunc("GET /api/loans/completed", app.getUserCompletedLoanHistoryHandler) 
 	mux.HandleFunc("GET /api/fines", app.getUserPendingFinesHandler)
