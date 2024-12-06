@@ -35,6 +35,9 @@ func (app *application) routes() http.Handler {
 	// Rutas de Gestión de Libros
 	mux.HandleFunc("POST /api/admin/books", app.createBookHandler)       
 	mux.HandleFunc("PUT /api/admin/books/{id}", app.updateBookHandler)   
+	mux.HandleFunc("PUT /api/editoriales", app.createEditorialHandler)
+	mux.HandleFunc("GET /api/editoriales" , app.getEditorialsHandler)
+	mux.HandleFunc("GET /api/autores", app.getAutoresHandler)
 
 	// Rutas de Gestión de Reservas
 	mux.HandleFunc("POST /api/reservation", app.createReservation)

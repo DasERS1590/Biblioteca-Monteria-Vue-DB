@@ -1,22 +1,22 @@
-import React, { useState } from "react";
-import axios from "axios";
+import React, { useState } from 'react';
+import axios from 'axios';
 
 function Register() {
   const [formData, setFormData] = useState({
-    nombre: "",
-    direccion: "",
-    telefono: "",
-    correo: "",
-    fechaNacimiento: "",
-    tipoSocio: "",
-    contrasena: "",
-    rol: "usuario", // Rol por defecto
+    nombre: '',
+    direccion: '',
+    telefono: '',
+    correo: '',
+    fecha_nacimiento: '', // Cambiado a fecha_nacimiento
+    tipo_socio: 'normal', // Cambiado a tipo_socio
+    contrasena: '',
+    rol: 'usuario',
   });
 
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
-  // Manejar el cambio de cada campo en el formulario
+  // Maneja los cambios de los campos del formulario
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prevData) => ({
@@ -25,131 +25,131 @@ function Register() {
     }));
   };
 
-  // Manejar el envío del formulario
+  // Maneja el envío del formulario
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError('');
+    setSuccess('');
+
+    // Validar que todos los campos estén completos
+    if (
+      !formData.nombre ||
+      !formData.direccion ||
+      !formData.telefono ||
+      !formData.correo ||
+      !formData.fecha_nacimiento ||
+      !formData.contrasena
+    ) {
+      setError('Todos los campos son obligatorios');
+      return;
+    }
+
     try {
-      // Realizar la solicitud POST
-      const response = await axios.post("http://localhost:4000/api/register", formData, {
+      // Realizar solicitud POST al backend con la URL correcta
+      const response = await axios.post('http://localhost:4000/api/register', formData, {
         headers: {
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
         },
       });
 
-      // Mostrar mensaje de éxito
-      setSuccess(response.data.message);
-      setError(""); // Limpiar el mensaje de error si es exitoso
-    } catch (err) {
-      // Mostrar mensaje de error
-      if (err.response) {
-        setError(err.response.data.error || "Error desconocido");
+      // Respuesta exitosa
+      setSuccess(`Usuario registrado exitosamente. ID: ${response.data.id}`);
+    } catch (error) {
+      // Manejo de errores
+      if (error.response) {
+        setError(error.response.data.message || 'Error al registrar el usuario');
       } else {
-        setError("No se pudo conectar al servidor");
+        setError('Error en la conexión con el servidor');
       }
-      setSuccess(""); // Limpiar el mensaje de éxito si hay error
     }
   };
 
   return (
     <div>
       <h2>Registro de Usuario</h2>
-      {error && <p style={{ color: "red" }}>{error}</p>}
-      {success && <p style={{ color: "green" }}>{success}</p>}
       <form onSubmit={handleSubmit}>
         <div>
-          <label htmlFor="nombre">Nombre</label>
+          <label>Nombre:</label>
           <input
             type="text"
-            id="nombre"
             name="nombre"
             value={formData.nombre}
             onChange={handleChange}
-            required
           />
         </div>
         <div>
-          <label htmlFor="direccion">Dirección</label>
+          <label>Dirección:</label>
           <input
             type="text"
-            id="direccion"
             name="direccion"
             value={formData.direccion}
             onChange={handleChange}
-            required
           />
         </div>
         <div>
-          <label htmlFor="telefono">Teléfono</label>
+          <label>Teléfono:</label>
           <input
             type="text"
-            id="telefono"
             name="telefono"
             value={formData.telefono}
             onChange={handleChange}
-            required
           />
         </div>
         <div>
-          <label htmlFor="correo">Correo Electrónico</label>
+          <label>Correo:</label>
           <input
             type="email"
-            id="correo"
             name="correo"
             value={formData.correo}
             onChange={handleChange}
-            required
           />
         </div>
         <div>
-          <label htmlFor="fechaNacimiento">Fecha de Nacimiento</label>
+          <label>Fecha de Nacimiento:</label>
           <input
             type="date"
-            id="fechaNacimiento"
-            name="fechaNacimiento"
-            value={formData.fechaNacimiento}
+            name="fecha_nacimiento" // Cambiado a fecha_nacimiento
+            value={formData.fecha_nacimiento}
             onChange={handleChange}
-            required
           />
         </div>
         <div>
-          <label htmlFor="tipoSocio">Tipo de Socio</label>
+          <label>Tipo de Socio:</label>
           <select
-            id="tipoSocio"
-            name="tipoSocio"
-            value={formData.tipoSocio}
+            name="tipo_socio" // Cambiado a tipo_socio
+            value={formData.tipo_socio}
             onChange={handleChange}
-            required
           >
-            <option value="socio">Socio</option>
-            <option value="socio_activo">Socio Activo</option>
+            <option value="normal">Normal</option>
+            <option value="estudiante">Estudiante</option>
+            <option value="profesor">Profesor</option>
           </select>
         </div>
         <div>
-          <label htmlFor="contrasena">Contraseña</label>
+          <label>Contraseña:</label>
           <input
             type="password"
-            id="contrasena"
             name="contrasena"
             value={formData.contrasena}
             onChange={handleChange}
-            required
           />
         </div>
         <div>
-          <label htmlFor="rol">Rol</label>
+          <label>Rol:</label>
           <select
-            id="rol"
             name="rol"
             value={formData.rol}
             onChange={handleChange}
-            required
           >
             <option value="usuario">Usuario</option>
             <option value="administrador">Administrador</option>
           </select>
         </div>
-        <button type="submit">Registrar</button>
+        <button type="submit">Registrar </button>
       </form>
+
+      {error && <div style={{ color: 'red' }}>{error}</div>}
+      {success && <div style={{ color: 'green' }}>{success}</div>}
     </div>
   );
 }
