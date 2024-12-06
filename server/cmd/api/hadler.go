@@ -693,90 +693,110 @@ func (app *application) getBooksByPublicationDateHandler(w http.ResponseWriter, 
 
 }
 
+
+
+
+
 func (app *application) getBooksAvailableByGenreAndAuthorHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		http.Error(w, "Método no permitido", http.StatusMethodNotAllowed)
-		return
-	}
+    if r.Method != http.MethodGet {
+        http.Error(w, "Método no permitido", http.StatusMethodNotAllowed)
+        return
+    }
 
-	// Obtener los parámetros de la URL
-	genero := r.URL.Query().Get("genero")
-	autor := r.URL.Query().Get("autor")
+    // Obtener los parámetros de la URL
+    genero := r.URL.Query().Get("genero")
+    autor := r.URL.Query().Get("autor")
+    titulo := r.URL.Query().Get("titulo")
 
-	// Validar que los parámetros sean proporcionados
-	if genero == "" || autor == "" {
-		http.Error(w, "Los parámetros 'genero' y 'autor' son obligatorios", http.StatusBadRequest)
-		return
-	}
+    // Definir la consulta SQL base
+    query := `
+        SELECT 
+            libro.idlibro,
+            libro.titulo,
+            libro.genero,
+            libro.estado,
+            autor.nombre AS autor
+        FROM 
+            libro
+        JOIN 
+            libro_autor ON libro.idlibro = libro_autor.idlibro
+        JOIN 
+            autor ON libro_autor.idautor = autor.idautor
+        WHERE 
+            libro.estado = 'disponible' 
+    `
 
-	// Construir consulta SQL
-	query := `
-		SELECT 
-			libro.idlibro,
-			libro.titulo,
-			libro.genero,
-			libro.estado,
-			autor.nombre AS autor
-		FROM 
-			libro
-		JOIN 
-			libro_autor ON libro.idlibro = libro_autor.idlibro
-		JOIN 
-			autor ON libro_autor.idautor = autor.idautor
-		WHERE 
-			libro.estado = 'disponible' AND libro.genero = ? AND autor.nombre LIKE ?
-	`
+    // Lista de parámetros que vamos a usar para la consulta
+    var params []interface{}
 
-	// Ejecutar la consulta
-	rows, err := app.db.Query(query, genero, "%"+autor+"%")
-	if err != nil {
-		http.Error(w, "Error ejecutando consulta", http.StatusInternalServerError)
-		return
-	}
-	defer rows.Close()
+    // Agregar condiciones de filtrado a la consulta según los parámetros proporcionados
+    if genero != "" {
+        query += " AND libro.genero LIKE ?"
+        params = append(params, "%"+genero+"%")
+    }
+    if autor != "" {
+        query += " AND autor.nombre LIKE ?"
+        params = append(params, "%"+autor+"%")
+    }
+    if titulo != "" {
+        query += " AND libro.titulo LIKE ?"
+        params = append(params, "%"+titulo+"%")
+    }
 
-	// Definir la estructura para los libros
-	type Book struct {
-		IDLibro int    `json:"id_libro"`
-		Titulo  string `json:"titulo"`
-		Genero  string `json:"genero"`
-		Estado  string `json:"estado"`
-		Autor   string `json:"autor"`
-	}
+    // Ejecutar la consulta con los parámetros dinámicos
+    rows, err := app.db.Query(query, params...)
+    if err != nil {
+        http.Error(w, "Error ejecutando consulta", http.StatusInternalServerError)
+        return
+    }
+    defer rows.Close()
 
-	var books []Book
+    // Definir la estructura para los libros
+    type Book struct {
+        IDLibro int    `json:"id_libro"`
+        Titulo  string `json:"titulo"`
+        Genero  string `json:"genero"`
+        Estado  string `json:"estado"`
+        Autor   string `json:"autor"`
+    }
 
-	// Procesar resultados
-	for rows.Next() {
-		var book Book
-		err := rows.Scan(&book.IDLibro, &book.Titulo, &book.Genero, &book.Estado, &book.Autor)
-		if err != nil {
-			http.Error(w, "Error al leer los resultados", http.StatusInternalServerError)
-			return
-		}
-		books = append(books, book)
-	}
+    var books []Book
 
-	if err := rows.Err(); err != nil {
-		http.Error(w, "Error durante la iteración de filas", http.StatusInternalServerError)
-		return
-	}
+    // Procesar resultados
+    for rows.Next() {
+        var book Book
+        err := rows.Scan(&book.IDLibro, &book.Titulo, &book.Genero, &book.Estado, &book.Autor)
+        if err != nil {
+            http.Error(w, "Error al leer los resultados", http.StatusInternalServerError)
+            return
+        }
+        books = append(books, book)
+    }
 
-	// Si no hay resultados, enviar mensaje claro
-	if len(books) == 0 {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(w).Encode(map[string]string{"message": "No hay libros disponibles para el criterio especificado"})
-		return
-	}
+    if err := rows.Err(); err != nil {
+        http.Error(w, "Error durante la iteración de filas", http.StatusInternalServerError)
+        return
+    }
 
-	// Responder con los resultados en formato JSON
-	w.Header().Set("Content-Type", "application/json")
-	err = json.NewEncoder(w).Encode(books)
-	if err != nil {
-		http.Error(w, "Error al codificar la respuesta", http.StatusInternalServerError)
-	}
+    // Si no hay resultados, enviar mensaje claro
+    if len(books) == 0 {
+        w.Header().Set("Content-Type", "application/json")
+        w.WriteHeader(http.StatusNotFound)
+        json.NewEncoder(w).Encode(map[string]string{"message": "No hay libros disponibles para el criterio especificado"})
+        return
+    }
+
+    // Responder con los resultados en formato JSON
+    w.Header().Set("Content-Type", "application/json")
+    err = json.NewEncoder(w).Encode(books)
+    if err != nil {
+        http.Error(w, "Error al codificar la respuesta", http.StatusInternalServerError)
+    }
 }
+
+
+
+
 
 func (app *application) getUserActiveLoanStatusHandler(w http.ResponseWriter, r *http.Request) {
 
@@ -860,6 +880,58 @@ func (app *application) getUserActiveLoanStatusHandler(w http.ResponseWriter, r 
 	}
 
 }
+
+
+func (app *application) createLoanHandler(w http.ResponseWriter, r *http.Request) {
+	// Validar que el método sea POST
+	if r.Method != http.MethodPost {
+		http.Error(w, "Método no permitido", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Decodificar el cuerpo de la solicitud JSON
+	var requestBody struct {
+		UsuarioID     int    `json:"usuario_id"`
+		LibroID       int    `json:"libro_id"`
+		FechaPrestamo string `json:"fecha_prestamo"`
+		FechaDevolucion string `json:"fecha_devolucion"`
+	}
+	err := json.NewDecoder(r.Body).Decode(&requestBody)
+	if err != nil {
+		http.Error(w, "Error al decodificar el cuerpo de la solicitud", http.StatusBadRequest)
+		return
+	}
+
+	// Validar que todos los parámetros requeridos estén presentes
+	if requestBody.UsuarioID == 0 || requestBody.LibroID == 0 || requestBody.FechaPrestamo == "" || requestBody.FechaDevolucion == "" {
+		http.Error(w, "Todos los parámetros son obligatorios", http.StatusBadRequest)
+		return
+	}
+
+	// Generar una nueva ID para el préstamo
+	newLoanID := generateNewId(app, "prestamo", "idprestamo")
+
+	// Llamar al procedimiento almacenado para realizar el préstamo, pasando la nueva ID generada
+	_, err = app.db.Exec(
+		"CALL realizarPrestamo(?, ?, ?, ?, ?)",
+		newLoanID,               // Nueva ID del préstamo
+		requestBody.UsuarioID,   // ID del usuario
+		requestBody.LibroID,     // ID del libro
+		requestBody.FechaPrestamo, 
+		requestBody.FechaDevolucion,
+	)
+
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Error al realizar el préstamo: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	// Responder con un mensaje de éxito
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(map[string]string{"message": "Préstamo realizado con éxito"})
+}
+
 
 func (app *application) getUserCompletedLoanHistoryHandler(w http.ResponseWriter, r *http.Request) {
 	// Validar que el método sea GET
