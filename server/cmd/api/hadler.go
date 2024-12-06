@@ -1306,18 +1306,10 @@ func (app *application) registerHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	var lastID int
-	queryGetLastID := "SELECT MAX(idsocio) FROM socio"
-	err = app.db.QueryRow(queryGetLastID).Scan(&lastID)
-	if err != nil && err != sql.ErrNoRows {
-		http.Error(w, "Error al obtener el último ID", http.StatusInternalServerError)
-		return
-	}
+	// Usar la función para obtener el nuevo ID
+	newID := generateNewId(app, "socio", "idsocio")
 
-	// Calcular el nuevo ID, incrementando el último ID por 1
-	newID := lastID + 1
-
-	// Insertar el nuevo usuario en la tabla `socio` con el ID manual
+	// Insertar el nuevo usuario en la tabla `socio` con el ID generado
 	queryInsertSocio := `
 		INSERT INTO socio (idsocio, nombre, direccion, telefono, correo, fechanacimiento, tiposocio, fecharegistro, imagenperfil, rol)
 		VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), ?, ?)
@@ -1330,9 +1322,6 @@ func (app *application) registerHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// El nuevo ID ya está asignado
-	userID := newID
-
 	// Función para encriptar la contraseña usando SHA-256
 	hashPassword := func(password string) string {
 		hash := sha256.New()
@@ -1343,10 +1332,10 @@ func (app *application) registerHandler(w http.ResponseWriter, r *http.Request) 
 	// Insertar la contraseña en la tabla `usuariopassword`
 	hashedPassword := hashPassword(req.Contrasena)
 	queryInsertPassword := `
-	INSERT INTO usuariopassword (idusuario, hash_contrasena)
-	VALUES (?, ?)
-`
-	_, err = app.db.Exec(queryInsertPassword, userID, hashedPassword)
+		INSERT INTO usuariopassword (idusuario, hash_contrasena)
+		VALUES (?, ?)
+	`
+	_, err = app.db.Exec(queryInsertPassword, newID, hashedPassword)
 	if err != nil {
 		http.Error(w, "Error al guardar la contraseña del usuario", http.StatusInternalServerError)
 		return
@@ -1357,10 +1346,10 @@ func (app *application) registerHandler(w http.ResponseWriter, r *http.Request) 
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"message": "Usuario registrado exitosamente",
-		"id":      userID,
+		"id":      newID, // Enviar el nuevo ID en la respuesta
 	})
-
 }
+
 
 func (app *application) createBookHandler(w http.ResponseWriter, r *http.Request) {
 	var newBook struct {
@@ -1599,6 +1588,115 @@ func (app *application) extendLoanHandler(w http.ResponseWriter, r *http.Request
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("Préstamo extendido exitosamente"))
 }
+
+
+// Crear una nueva editorial
+func (app *application) createEditorialHandler(w http.ResponseWriter, r *http.Request) {
+	var newEditorial struct {
+		Nombre      string `json:"nombre"`
+		Direccion   string `json:"direccion"`
+		PaginaWeb   string `json:"paginaweb"`
+	}
+
+	// Decodificar el cuerpo de la solicitud JSON
+	err := json.NewDecoder(r.Body).Decode(&newEditorial)
+	if err != nil {
+		http.Error(w, "Error al procesar la solicitud", http.StatusBadRequest)
+		return
+	}
+
+	newid := generateNewId(app, "editorial", "ideditorial")
+
+
+	// Insertar la nueva editorial en la base de datos
+	insertEditorialQuery := `
+        INSERT INTO editorial (ideditorial ,nombre, direccion, paginaweb)
+        VALUES (?, ?, ?, ?)`
+
+	_, err = app.db.Exec(insertEditorialQuery, newid, newEditorial.Nombre, newEditorial.Direccion, newEditorial.PaginaWeb)
+	if err != nil {
+		http.Error(w, "Error al insertar la editorial", http.StatusInternalServerError)
+		return
+	}
+
+	// Retornar respuesta
+	w.WriteHeader(http.StatusCreated)
+	w.Write([]byte("Editorial creada exitosamente"))
+}
+
+// Obtener todas las editoriales
+func (app *application) getEditorialsHandler(w http.ResponseWriter, r *http.Request) {
+	rows, err := app.db.Query("SELECT * FROM editorial")
+	if err != nil {
+		http.Error(w, "Error al obtener editoriales", http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	var editorials []struct {
+		IdEditorial int    `json:"ideditorial"`
+		Nombre      string `json:"nombre"`
+		Direccion   string `json:"direccion"`
+		PaginaWeb   string `json:"paginaweb"`
+	}
+
+	for rows.Next() {
+		var editorial struct {
+			IdEditorial int    `json:"ideditorial"`
+			Nombre      string `json:"nombre"`
+			Direccion   string `json:"direccion"`
+			PaginaWeb   string `json:"paginaweb"`
+		}
+		if err := rows.Scan(&editorial.IdEditorial, &editorial.Nombre, &editorial.Direccion, &editorial.PaginaWeb); err != nil {
+			http.Error(w, "Error al leer los datos de la editorial", http.StatusInternalServerError)
+			return
+		}
+		editorials = append(editorials, editorial)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(editorials)
+}
+
+// Obtener todos los autores
+func (app *application) getAutoresHandler(w http.ResponseWriter, r *http.Request) {
+	// Ejecuta la consulta para obtener todos los autores
+	rows, err := app.db.Query("SELECT idautor, nombre, nacionalidad FROM autor")
+	if err != nil {
+		http.Error(w, "Error al obtener autores", http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	// Estructura para almacenar los autores
+	var authors []struct {
+		ID          int    `json:"idautor"`
+		Nombre      string `json:"nombre"`
+		Nacionalidad string `json:"nacionalidad"`
+	}
+
+	// Itera sobre los resultados de la consulta
+	for rows.Next() {
+		var author struct {
+			ID          int    `json:"idautor"`
+			Nombre      string `json:"nombre"`
+			Nacionalidad string `json:"nacionalidad"`
+		}
+		if err := rows.Scan(&author.ID, &author.Nombre, &author.Nacionalidad); err != nil {
+			http.Error(w, "Error al leer los datos de los autores", http.StatusInternalServerError)
+			return
+		}
+		authors = append(authors, author)
+	}
+
+	// Configura los encabezados y responde con los autores en formato JSON
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(authors)
+}
+
+
 
 func generateNewId(app *application, tableName string, idColumn string) int {
 	var maxId int

@@ -10,30 +10,41 @@ function Reserva() {
     container: {
       padding: "20px",
       fontFamily: "Arial, sans-serif",
-      maxWidth: "800px",
+      maxWidth: "1000px",
       margin: "0 auto",
+      backgroundColor: "#fff",
+      borderRadius: "8px",
+      boxShadow: "0 2px 10px rgba(0, 0, 0, 0.1)",
     },
     header: {
       textAlign: "center",
       color: "#333",
       marginBottom: "20px",
+      fontSize: "24px",
     },
     error: {
       color: "red",
       fontWeight: "bold",
       textAlign: "center",
     },
-    list: {
-      listStyleType: "none",
-      padding: 0,
+    tableContainer: {
+      overflowX: "auto",
     },
-    listItem: {
-      backgroundColor: "#f9f9f9",
-      margin: "10px 0",
-      padding: "15px",
-      borderRadius: "8px",
-      boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
-      borderLeft: "4px solid #4CAF50",
+    table: {
+      width: "100%",
+      borderCollapse: "collapse",
+      marginTop: "20px",
+    },
+    th: {
+      backgroundColor: "#4CAF50",
+      color: "white",
+      padding: "12px",
+      textAlign: "center",
+    },
+    td: {
+      padding: "12px",
+      textAlign: "center",
+      borderBottom: "1px solid #ddd",
     },
     noReservations: {
       textAlign: "center",
@@ -79,16 +90,28 @@ function Reserva() {
       {reservations.length === 0 && !error ? (
         <p style={styles.noReservations}>No hay reservas activas para este usuario.</p>
       ) : (
-        <ul style={styles.list}>
-          {reservations.map((reservation) => (
-            <li key={reservation.id_reserva} style={styles.listItem}>
-              <strong>ID Reserva:</strong> {reservation.id_reserva} |{" "}
-              <strong>ID Libro:</strong> {reservation.id_libro} |{" "}
-              <strong>Fecha Reserva:</strong> {reservation.fecha_reserva} |{" "}
-              <strong>Estado:</strong> {reservation.estado}
-            </li>
-          ))}
-        </ul>
+        <div style={styles.tableContainer}>
+          <table style={styles.table}>
+            <thead>
+              <tr>
+                <th style={styles.th}>ID Reserva</th>
+                <th style={styles.th}>ID Libro</th>
+                <th style={styles.th}>Fecha Reserva</th>
+                <th style={styles.th}>Estado</th>
+              </tr>
+            </thead>
+            <tbody>
+              {reservations.map((reservation) => (
+                <tr key={reservation.id_reserva}>
+                  <td style={styles.td}>{reservation.id_reserva}</td>
+                  <td style={styles.td}>{reservation.id_libro}</td>
+                  <td style={styles.td}>{reservation.fecha_reserva}</td>
+                  <td style={styles.td}>{reservation.estado}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   );

@@ -8,6 +8,8 @@ import Loans from "../components/Admin/Loans";
 import Fines from "../components/Admin/Fines";
 import Reservation from "../components/Admin/Reservation";
 import Register from "../components/Admin/Register";
+import CreateBook from "../components/Admin/CreateBook";
+import CreateEditorial from "../components/Admin/CreateEditorial";
 
 
 const AdminRoutes = () => {
@@ -21,6 +23,8 @@ const AdminRoutes = () => {
           <Route path="/fines" element={<Fines/>} />
           <Route path="/reservations" element={<Reservation/>} />
           <Route path="/register" element={ <Register/> }/>
+          <Route path="/registrarlibro" element={ <CreateBook/> }/>
+          <Route path="/registaredi" element = {<CreateEditorial/>} />
         </Routes>
       </AdminLayout>
       </ProtectedRoute >
