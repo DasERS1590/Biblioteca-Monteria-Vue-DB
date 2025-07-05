@@ -1,8 +1,8 @@
-import React from "react";
 import { Route, Routes } from "react-router-dom";
 
 import UserLayout from "../components/Layout/UserLayout";
 import ProtectedRoute from "./ProtectedRoute";
+import Dashboard from "../components/User/Dashboard";
 import Libro from "../components/User/Libro";
 import Historial from "../components/User/Historial";
 import Multa from "../components/User/Multas";
@@ -15,7 +15,7 @@ const UserRoutes = () => {
     <ProtectedRoute allowedRoles={["usuario"]} >
       <UserLayout>
         <Routes>
-           
+          <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/libro" element={ <Libro/> } />
           <Route path="/historial" element={ <Historial/> } />
           <Route path="/multa" element = {<Multa/>} />

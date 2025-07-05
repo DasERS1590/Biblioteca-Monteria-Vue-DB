@@ -1,5 +1,4 @@
-import React from "react";
-import "../styles/Navar.css"
+import "../styles/common/Navbar.css"
 import { Link, useNavigate } from "react-router-dom";
 
 const Navbar = ({ isAdmin }) => {
@@ -8,10 +7,11 @@ const Navbar = ({ isAdmin }) => {
 
   const handleLogout = () => {
     localStorage.removeItem("user");
-    console.log("Usuario deslogueado");
-    navigate("/login");
 
+    navigate("/login");
   };
+
+  const user = JSON.parse(localStorage.getItem("user"));
 
   return (
     <nav className="navbar">
@@ -19,17 +19,14 @@ const Navbar = ({ isAdmin }) => {
       <ul>
         {isAdmin ? (
           <>
-    
             <li><Link to="/admin/books">Libros</Link></li>
             <li><Link to="/admin/users">Usuarios</Link></li>
             <li><Link to="/admin/loans">Préstamos</Link></li>
             <li><Link to="/admin/fines">Multas</Link></li>
             <li><Link to="/admin/reservations">Reservas</Link></li>
-            <li><Link to="/admin/register">Registar Usuario </Link></li>
             <li><Link to="/admin/registrarlibro"> Registrar libro </Link>  </li>
             <li><Link to="/admin/registaredi"> Registrar Editorial </Link>  </li>
-            
-
+            <li><Link to="/admin/registrar-autor"> Registrar Autor </Link>  </li>
           </>
         ) : (
           <>
@@ -38,12 +35,22 @@ const Navbar = ({ isAdmin }) => {
             <li><Link to="/user/multa"> Multa </Link></li>
             <li><Link to="/user/prestamo"> Prestamo </Link></li>
             <li><Link to="/user/reserva"> Reserva </Link></li>
-
           </>
         )}
-        <button onClick={handleLogout} style={{ cursor: "pointer", background: "none", border: "none", color: "blue", textDecoration: "underline" }}>
-          Logout
-        </button>
+        <li>
+          <span className="navbar-user">{user?.rol} : {user?.nombre}</span>
+        </li>
+        <li>
+          <span style={{ color: 'red', fontWeight: 'bold', fontSize: '1.2rem' }}>AQUÍ DEBERÍA IR EL LOGOUT</span>
+        </li>
+        <li>
+          <button
+            onClick={handleLogout}
+            className="navbar-logout debug-logout"
+          >
+            Logout
+          </button>
+        </li>
       </ul>
     </nav>
   );

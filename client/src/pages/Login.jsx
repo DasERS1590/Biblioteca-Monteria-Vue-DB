@@ -1,61 +1,60 @@
-// src/pages/Login.jsx
 import React, { useState } from "react";
-import "../styles/login.css"; // Importamos los estilos
-import { useNavigate } from "react-router-dom";
+import { authService } from '../services/authService';
+import "../styles/user/login.css";
 
 const Login = () => {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
-  const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setErrorMessage("");
+    
 
+    
     try {
-      // Hacer la solicitud al backend
-      const response = await fetch("http://localhost:4000/api/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ correo: email, contrasena: password }),
-      });
+      const response = await authService.login({ correo: email, contrasena: password });
 
-      if (!response.ok) {
-        // Si la respuesta no es OK, mostrar un error
-        const errorData = await response.json();
-        setErrorMessage(errorData.message || "Login failed.");
-        return;
-      }
-
-      const data = await response.json();
-
-      // para guardar en local store 
-      localStorage.setItem("user", JSON.stringify(data));
-      console.log("Usuario autenticado:", data);
-
-      if (data.rol === "administrador") {
-        navigate("/admin/dashboard");
+      
+      // Verificar que la respuesta tenga la estructura correcta
+      if (response && response.data) {
+        const { token, id, nombre, rol } = response.data;
+        
+        if (token && id) {
+          // Crear objeto usuario con la estructura esperada
+          const user = {
+            id: id,
+            nombre: nombre,
+            rol: rol
+          };
+          
+          // Guardar token y usuario en localStorage
+          localStorage.setItem("token", token);
+          localStorage.setItem("user", JSON.stringify(user));
+          
+          window.location.href = "/";
+        } else {
+          setErrorMessage("Respuesta del servidor incompleta");
+        }
       } else {
-        navigate("/user/dashboard");
+        setErrorMessage("Respuesta del servidor inválida");
       }
     } catch (error) {
-      console.error("Error during login:", error );
-      setErrorMessage("An error occurred. Please try again.");
+      setError('Error al iniciar sesión. Verifica tus credenciales.');
     }
   };
 
   return (
     <div className="login-container">
       <div className="login-box">
-        <h2 className="login-header">Biblioteca</h2> {/* Título ajustado */}
+        <h2 className="login-header">Biblioteca</h2>
         <form onSubmit={handleSubmit}>
           <div className="input-group">
             <input
               type="email"
-              placeholder="Email"
+              placeholder="Correo"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
@@ -64,18 +63,30 @@ const Login = () => {
           <div className="input-group">
             <input
               type="password"
-              placeholder="Password"
+              placeholder="Contraseña"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
             />
           </div>
-          <div className="forgot-password">
-            <a href="#">Forgot password?</a>
-          </div>
+
           <button type="submit" className="login-btn">
-            Log in
+            Iniciar Sesión
           </button>
+          <div className="text">
+            <div className="create-acount">
+              <a href="/register">Crear Cuenta</a>
+            </div>
+            <div className="forgot-password">
+              <a href="#">¿Olvidaste tu contraseña?</a>
+            </div>
+          </div>
+
+          {errorMessage && (
+            <div className="error-message">
+              <h3>{errorMessage}</h3>
+            </div>
+          )}
         </form>
       </div>
     </div>
@@ -93,8 +104,7 @@ para recuperar el localestorage
 const user = JSON.parse(localStorage.getItem("user"));
 
 if (user) {
-  console.log("Usuario logueado:", user);
-  console.log("Rol del usuario:", user.rol);
+  
 }
 
 */

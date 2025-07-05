@@ -1,0 +1,117 @@
+/* src/styles/login.css */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Arial', sans-serif;
+  background-color: #f3f4f6; /* Un color de fondo más suave */
+}
+
+.login-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  background-color: #f3f4f6;
+}
+
+.login-box {
+  background-color: #ffffff;
+  padding: 40px;
+  border-radius: 10px; 
+  box-shadow: 0 2px 15px rgba(0, 0, 0, 0.1); 
+  width: 100%;
+  max-width: 400px;
+  text-align: center;
+}
+
+.login-header {
+  font-size: 28px; 
+  color: #1f2937; 
+  margin-bottom: 30px; 
+  font-weight: 600;
+}
+
+.input-group {
+  margin-bottom: 20px;
+}
+
+input[type="email"],
+input[type="password"] {
+  width: 100%;
+  padding: 15px; 
+  border: 1px solid #ddd;
+  border-radius: 8px; 
+  font-size: 16px;
+  background-color: #f9fafb; 
+  color: #4b5563; 
+}
+
+input[type="email"]:focus,
+input[type="password"]:focus {
+  outline: none;
+  border-color: #4ade80; 
+}
+
+.forgot-password .create-acount{
+  text-align: left;
+  margin-top: 10px;
+}
+
+.forgot-password a , .create-acount a{
+  color: #10b981; 
+  text-decoration: none;
+  font-size: 14px;
+}
+
+.forgot-password a:hover , .create-acount a:hover{
+  text-decoration: underline;
+}
+
+.login-btn {
+  width: 100%;
+  padding: 15px;
+  background-color: #10b981;
+  color: white;
+  border: none;
+  border-radius: 8px; 
+  font-size: 16px;
+  font-weight: 600; 
+  cursor: pointer;
+  margin-bottom: 20px;
+}
+
+.login-btn:hover {
+  background-color: #16a34a;
+}
+
+.login-box img {
+  width: 30px; 
+  height: 30px;
+  margin-bottom: 20px;
+}
+
+.text {
+  display: flex; 
+  justify-content: space-between; 
+  margin-bottom: 20px;
+}
+
+.error-message {
+  background-color: #fee2e2;
+  border: 1px solid #fecaca;
+  color: #dc2626;
+  padding: 12px;
+  border-radius: 6px;
+  margin-top: 15px;
+}
+
+.error-message h3 {
+  font-size: 14px;
+  font-weight: 500;
+  margin: 0;
+} 

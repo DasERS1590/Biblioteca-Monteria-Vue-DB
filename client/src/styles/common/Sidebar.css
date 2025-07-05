@@ -1,0 +1,132 @@
+/* Sidebar.css */
+
+.sidebar {
+  width: 240px;
+  background: #fff;
+  border-right: 1px solid #eee;
+  min-height: 100vh;
+  padding: 24px 0;
+  position: fixed;
+  left: 0;
+  top: 0;
+  box-shadow: 2px 0 8px rgba(0,0,0,0.04);
+  z-index: 100;
+  transition: width 0.3s ease;
+}
+
+.sidebar.collapsed {
+  width: 60px;
+  padding: 24px 0;
+}
+
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  margin-bottom: 32px;
+}
+
+.sidebar-logo {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #10b981;
+  text-align: center;
+  flex: 1;
+}
+
+.sidebar-toggle-btn {
+  background: #f3f4f6;
+  border: none;
+  border-radius: 4px;
+  padding: 4px 8px;
+  cursor: pointer;
+  font-size: 12px;
+  color: #6b7280;
+  transition: background 0.2s;
+}
+
+.sidebar-toggle-btn:hover {
+  background: #e5e7eb;
+}
+
+.sidebar-links {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.sidebar-link {
+  color: #333;
+  text-decoration: none;
+  font-size: 1rem;
+  padding: 8px 24px;
+  border-radius: 4px;
+  transition: background 0.2s, color 0.2s;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebar.collapsed .sidebar-link {
+  padding: 8px 12px;
+  text-align: center;
+  font-size: 1.2rem;
+  font-weight: bold;
+}
+
+.sidebar-link:hover,
+.sidebar-link.active {
+  background: #e6ffe6;
+  color: #10b981;
+}
+
+.sidebar-user-logout {
+  margin-top: 32px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 0 16px;
+}
+
+.sidebar-user {
+  font-size: 1rem;
+  color: #333;
+  font-weight: 600;
+  background: #f3f4f6;
+  padding: 8px 16px;
+  border-radius: 6px;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebar.collapsed .sidebar-user {
+  padding: 8px 4px;
+  font-size: 0.9rem;
+}
+
+.sidebar-logout {
+  background: #10b981;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 24px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+  white-space: nowrap;
+}
+
+.sidebar.collapsed .sidebar-logout {
+  padding: 10px 8px;
+  font-size: 1.2rem;
+  min-width: 44px;
+}
+
+.sidebar-logout:hover {
+  background: #16a34a;
+} 

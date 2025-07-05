@@ -1,92 +1,79 @@
-import React, { useState } from 'react';
-import axios from 'axios';
+import { useApiMutation, useForm } from '../../hooks/useApi';
+import { editorialService } from '../../services/editorialService';
+import "../../styles/admin/CreateEditorial.css"
 
 function CreateEditorial() {
-  const [editorialData, setEditorialData] = useState({
+  const { formData, handleChange, resetForm } = useForm({
     nombre: '',
     direccion: '',
-    paginaWeb: '',
+    paginaWeb: ''
   });
 
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
-
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setEditorialData((prevData) => ({
-      ...prevData,
-      [name]: value,
-    }));
-  };
+  const { execute: createEditorial, loading, error, success, reset } = useApiMutation(
+    editorialService.createEditorial
+  );
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
-    setSuccess('');
-
-    // Validación de campos
-    if (!editorialData.nombre || !editorialData.direccion || !editorialData.paginaWeb) {
-      setError('Todos los campos son obligatorios');
+    
+    if (!formData.nombre || !formData.direccion || !formData.paginaWeb) {
       return;
     }
 
     try {
-      // Enviar datos para crear editorial
-      const response = await axios.post('http://localhost:4000/api/editoriales', editorialData, {
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      // Mostrar mensaje de éxito
-      setSuccess('Editorial creada exitosamente');
-      setEditorialData({ nombre: '', direccion: '', paginaWeb: '' });
+      await createEditorial(formData);
+      resetForm();
     } catch (error) {
-      // Manejo de errores
-      if (error.response) {
-        setError(error.response.data.message || 'Error al crear la editorial');
-      } else {
-        setError('Error en la conexión con el servidor');
-      }
+      // El error se maneja en el hook
     }
   };
 
   return (
-    <div>
-      <h2>Crear Nueva Editorial</h2>
+    <div className='form_container'>
+      <h2>Guardar Nueva Editorial</h2>
       <form onSubmit={handleSubmit}>
-        <div>
-          <label>Nombre:</label>
+        <div className="form-group">
           <input
             type="text"
             name="nombre"
-            value={editorialData.nombre}
+            value={formData.nombre}
             onChange={handleChange}
+            placeholder="Nombre"
+            required
           />
         </div>
-        <div>
-          <label>Dirección:</label>
+        <div className="form-group">
           <input
             type="text"
             name="direccion"
-            value={editorialData.direccion}
+            value={formData.direccion}
             onChange={handleChange}
+            placeholder="Dirección"
+            required
           />
         </div>
-        <div>
-          <label>Página Web:</label>
+        <div className="form-group">
           <input
             type="text"
             name="paginaWeb"
-            value={editorialData.paginaWeb}
+            value={formData.paginaWeb}
             onChange={handleChange}
+            placeholder="Página Web"
+            required
           />
         </div>
-        <button type="submit">Crear Editorial</button>
+
+        <button 
+          type="submit" 
+          className="my-button"
+          disabled={loading}
+        >
+          {loading ? 'Creando...' : 'Crear Editorial'}
+        </button>
       </form>
 
-      {error && <div style={{ color: 'red' }}>{error}</div>}
-      {success && <div style={{ color: 'green' }}>{success}</div>}
+      {error && <div className="error-message">{error}</div>}
+      {success && <div className="success-message">Editorial guardada exitosamente</div>}
     </div>
   );
 }

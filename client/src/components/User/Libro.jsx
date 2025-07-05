@@ -1,229 +1,242 @@
-import React, { useState } from "react";
+import { useState } from "react";
+import { useApiMutation, useForm, useFilters } from "../../hooks/useApi";
+import { bookService } from "../../services/bookService";
+import { loanService } from "../../services/loanService";
+import DataTable from "../common/DataTable";
+import FilterForm from "../common/FilterForm";
+import "../../styles/user/Libro.css";
 
 const Libro = () => {
-  const [genre, setGenre] = useState("");
-  const [author, setAuthor] = useState("");
-  const [titulo, setTitulo] = useState("");
   const [books, setBooks] = useState([]);
-  const [selectedBook, setSelectedBook] = useState(null); // Libro seleccionado para préstamo
-  const [error, setError] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [loanDates, setLoanDates] = useState({
-    fechaPrestamo: "",
-    fechaDevolucion: "",
+  const [selectedBook, setSelectedBook] = useState(null);
+  const [showModal, setShowModal] = useState(false);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchError, setSearchError] = useState(null);
+
+  const { filters, updateFilter, clearFilters } = useFilters({
+    genero: "",
+    autor: "",
+    titulo: ""
   });
-  const [loanMessage, setLoanMessage] = useState(""); // Mensaje de préstamo
-  const [showModal, setShowModal] = useState(false); // Controla la visibilidad del modal
+
+  const { formData, handleChange, resetForm } = useForm({
+    fechaPrestamo: "",
+    fechaDevolucion: ""
+  });
+
+  const { execute: createLoan, loading: loanLoading, error: loanError, success: loanSuccess, reset: resetLoan } = useApiMutation(loanService.createLoan);
 
   const handleSearch = async () => {
-    setLoading(true);
-    setError(null);
-    setBooks([]);
+    setSearchLoading(true);
+    setSearchError(null);
+    
+    // Verificar si el usuario está autenticado
+    const token = localStorage.getItem('token');
+    const user = localStorage.getItem('user');
+    
+    if (!token) {
+      setSearchError("Debe iniciar sesión para buscar libros");
+      setSearchLoading(false);
+      return;
+    }
+    
+    if (!user) {
+      setSearchError("Información de usuario no encontrada. Por favor, inicie sesión nuevamente.");
+      setSearchLoading(false);
+      return;
+    }
+    
 
-    // Construir la URL con los parámetros de búsqueda
-    const queryParams = new URLSearchParams();
-    if (genre) queryParams.append("genero", genre);
-    if (author) queryParams.append("autor", author);
-    if (titulo) queryParams.append("titulo", titulo);
-
+    
     try {
-
+      const response = await bookService.getAvailableBooks(filters);
       
-      const response = await fetch(
-        `http://localhost:4000/api/books?${queryParams.toString()}`
-      );
+      // El servicio ya retorna response.data, que contiene { books: [...] }
+      const booksArray = response.books || [];
+      
+      setBooks(booksArray);
+      
+      if (booksArray.length === 0) {
 
-      if (response.ok) {
-        const data = await response.json();
-        setBooks(data);
-      } else {
-        const errorData = await response.json();
-        setError(errorData.message || "Error al buscar libros");
       }
     } catch (err) {
-      setError("Error al conectar con el servidor");
+      setError('Error al buscar libros');
     } finally {
-      setLoading(false);
+      setSearchLoading(false);
+  
     }
   };
 
-  // Manejar la selección de un libro
   const handleBookSelect = (book) => {
     setSelectedBook(book);
-    setShowModal(true); // Mostrar el modal al seleccionar un libro
+    setShowModal(true);
+    resetLoan();
   };
 
-  // Manejar el envío del formulario de préstamo
   const handleLoanSubmit = async (e) => {
     e.preventDefault();
-
-   const user = JSON.parse(localStorage.getItem("user"));
-
+    const user = JSON.parse(localStorage.getItem("user"));
+    
     if (!user) {
-      setError("Usuario no encontrado. Asegúrese de estar registrado.");
+      setSearchError("Usuario no encontrado. Asegúrese de estar registrado.");
       return;
     }
 
     const loanData = {
       usuario_id: user.id,
       libro_id: selectedBook.id_libro,
-      fecha_prestamo: loanDates.fechaPrestamo,
-      fecha_devolucion: loanDates.fechaDevolucion,
+      fecha_prestamo: formData.fechaPrestamo,
+      fecha_devolucion: formData.fechaDevolucion,
     };
 
     try {
-      const response = await fetch("http://localhost:4000/api/loans", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(loanData),
-      });
-
-      if (response.ok) {
-        setLoanMessage("Préstamo realizado con éxito");
-      } else {
-        const errorData = await response.json();
-        setLoanMessage(errorData.message || "Error al realizar el préstamo");
-      }
-    } catch (err) {
-      setLoanMessage("Error al conectar con el servidor");
+      await createLoan(loanData);
+      resetForm();
+      setShowModal(false);
+      setSelectedBook(null);
+      // Recargar la búsqueda para actualizar el estado de los libros
+      handleSearch();
+    } catch (error) {
+      // El error se maneja en el hook
     }
   };
 
-  // Cerrar el modal
   const closeModal = () => {
     setShowModal(false);
-    setLoanMessage(""); // Limpiar mensaje al cerrar modal
-    setLoanDates({ fechaPrestamo: "", fechaDevolucion: "" }); // Limpiar fechas
+    setSelectedBook(null);
+    resetForm();
+    resetLoan();
   };
 
+  const filterConfig = [
+    {
+      name: "genero",
+      placeholder: "Género (Ej: Ciencia Ficción)",
+      value: filters.genero
+    },
+    {
+      name: "autor", 
+      placeholder: "Autor (Ej: Isaac Asimov)",
+      value: filters.autor
+    },
+    {
+      name: "titulo",
+      placeholder: "Título (Ej: Fundación)", 
+      value: filters.titulo
+    }
+  ];
+
+  const columns = [
+    { key: 'id_libro', label: 'ID' },
+    { key: 'titulo', label: 'Título' },
+    { key: 'genero', label: 'Género' },
+    { key: 'estado', label: 'Estado' },
+    { key: 'autor', label: 'Autor' },
+    { 
+      key: 'actions', 
+      label: 'Acción',
+      render: (_, book) => (
+        <button 
+          className="btn" 
+          onClick={() => handleBookSelect(book)}
+          disabled={book.estado !== 'disponible'}
+        >
+          {book.estado === 'disponible' ? 'Seleccionar' : 'No disponible'}
+        </button>
+      )
+    }
+  ];
+
   return (
-    <div style={{ padding: "20px", fontFamily: "Arial, sans-serif" }}>
-      <h1>Buscar Libros</h1>
-      <div style={{ marginBottom: "20px" }}>
-        <label>
-          Género:{" "}
-          <input
-            type="text"
-            value={genre}
-            onChange={(e) => setGenre(e.target.value)}
-            placeholder="Ej: Ciencia Ficción"
-          />
-        </label>
-        <br />
-        <label>
-          Autor:{" "}
-          <input
-            type="text"
-            value={author}
-            onChange={(e) => setAuthor(e.target.value)}
-            placeholder="Ej: Isaac Asimov"
-          />
-        </label>
-        <br />
-        <label>
-          Título:{" "}
-          <input
-            type="text"
-            value={titulo}
-            onChange={(e) => setTitulo(e.target.value)}
-            placeholder="Ej: Fundación"
-          />
-        </label>
-      </div>
-      <button onClick={handleSearch} disabled={loading}>
-        {loading ? "Buscando..." : "Buscar"}
-      </button>
+    <div className="admin-dashboard">
+      <h1>Libros</h1>
+      <p className="description">Busca y solicita libros disponibles en la biblioteca.</p>
+      
+      <FilterForm
+        filters={filterConfig}
+        onFilterChange={updateFilter}
+        onSearch={handleSearch}
+        onClear={clearFilters}
+        loading={searchLoading}
+      />
 
-      {error && <p style={{ color: "red" }}>{error}</p>}
-
-      {books.length > 0 && (
-        <div style={{ marginTop: "20px" }}>
-          <h2>Resultados</h2>
-          <table border="1" cellPadding="10" style={{ width: "100%", textAlign: "left" }}>
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>Título</th>
-                <th>Género</th>
-                <th>Estado</th>
-                <th>Autor</th>
-                <th>Acción</th>
-              </tr>
-            </thead>
-            <tbody>
-              {books.map((book) => (
-                <tr key={book.id_libro}>
-                  <td>{book.id_libro}</td>
-                  <td>{book.titulo}</td>
-                  <td>{book.genero}</td>
-                  <td>{book.estado}</td>
-                  <td>{book.autor}</td>
-                  <td>
-                    <button onClick={() => handleBookSelect(book)}>Seleccionar</button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      {searchError && <p className="error">{searchError}</p>}
+      
+      <DataTable
+        columns={columns}
+        data={books}
+        loading={searchLoading}
+        error={searchError}
+        emptyMessage="No se encontraron libros."
+        className="libro-table"
+      />
 
       {showModal && selectedBook && (
-        <div
-          style={{
-            position: "fixed",
-            top: "0",
-            left: "0",
-            width: "100%",
-            height: "100%",
-            backgroundColor: "rgba(0,0,0,0.5)",
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-          }}
-        >
-          <div
-            style={{
-              backgroundColor: "white",
-              padding: "20px",
-              borderRadius: "5px",
-              minWidth: "300px",
-              textAlign: "center",
-            }}
-          >
-            <h2>Formulario de Préstamo</h2>
-            <p><strong>Libro Seleccionado:</strong> {selectedBook.titulo}</p>
-            <form onSubmit={handleLoanSubmit}>
-              <label>
-                Fecha de Préstamo:
-                <input
-                  type="date"
-                  value={loanDates.fechaPrestamo}
-                  onChange={(e) => setLoanDates({ ...loanDates, fechaPrestamo: e.target.value })}
-                  required
-                />
-              </label>
-              <br />
-              <label>
-                Fecha de Devolución:
-                <input
-                  type="date"
-                  value={loanDates.fechaDevolucion}
-                  onChange={(e) => setLoanDates({ ...loanDates, fechaDevolucion: e.target.value })}
-                  required
-                />
-              </label>
-              <br />
-              <button type="submit">Realizar Préstamo</button>
-            </form>
-            {loanMessage && (
-              <p style={{ marginTop: "20px", color: loanMessage.includes("Error") ? "red" : "green" }}>
-                {loanMessage}
-              </p>
-            )}
-            <button onClick={closeModal} style={{ marginTop: "10px" }}>Cerrar</button>
+        <div className="libro-modal">
+          <div className="libro-modal-content">
+            {/* Header con título y botón de cerrar */}
+            <div className="libro-modal-header">
+              <h2>Formulario de Préstamo</h2>
+              <button 
+                className="libro-modal-close"
+                onClick={closeModal}
+                type="button"
+              >
+                ×
+              </button>
+            </div>
+            
+            {/* Cuerpo del modal */}
+            <div className="libro-modal-body">
+              {/* Información del libro seleccionado */}
+              <div className="libro-selected-book">
+                <p><strong>Libro Seleccionado:</strong> {selectedBook.titulo}</p>
+              </div>
+              
+              {/* Formulario */}
+              <form onSubmit={handleLoanSubmit} className="libro-modal-form">
+                <div className="libro-form-group">
+                  <label htmlFor="fechaPrestamo">Fecha de Préstamo</label>
+                  <input
+                    type="date"
+                    id="fechaPrestamo"
+                    name="fechaPrestamo"
+                    value={formData.fechaPrestamo}
+                    onChange={handleChange}
+                    required
+                    className="libro-input"
+                  />
+                </div>
+                
+                <div className="libro-form-group">
+                  <label htmlFor="fechaDevolucion">Fecha de Devolución</label>
+                  <input
+                    type="date"
+                    id="fechaDevolucion"
+                    name="fechaDevolucion"
+                    value={formData.fechaDevolucion}
+                    onChange={handleChange}
+                    required
+                    className="libro-input"
+                  />
+                </div>
+                
+                <button 
+                  type="submit" 
+                  className="libro-btn"
+                  disabled={loanLoading}
+                >
+                  {loanLoading ? 'Procesando...' : 'Realizar Préstamo'}
+                </button>
+                
+                {loanError && (
+                  <p className="libro-error">{loanError}</p>
+                )}
+                {loanSuccess && (
+                  <p className="success-message">Préstamo realizado con éxito</p>
+                )}
+              </form>
+            </div>
           </div>
         </div>
       )}

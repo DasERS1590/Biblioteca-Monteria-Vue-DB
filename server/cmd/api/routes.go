@@ -1,60 +1,72 @@
 package main
 
 import (
+	httpSwagger "github.com/swaggo/http-swagger/v2"
 	"net/http"
-	"github.com/rs/cors"
 )
 
 func (app *application) routes() http.Handler {
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("/", app.home)
-	mux.HandleFunc("GET /api/admin/books", app.getFilteredBooksHandler) 
-	mux.HandleFunc("GET /api/admin/books/unavailable", app.getUnavailableBooksHandler)
-	mux.HandleFunc("GET /api/admin/users", app.getUsersByTypeHandler) 
-	mux.HandleFunc("GET /api/admin/loans", app.getActiveLoansHandler) 
-	mux.HandleFunc("GET /api/admin/fines/to", app.getPendingFinesHandler) 
-	mux.HandleFunc("GET /api/admin/fines", app.getUserFinesHandler)
-	mux.HandleFunc("GET /api/admin/reservations", app.getActiveReservationsHandler) 
-	mux.HandleFunc("GET /api/admin/loans/history", app.getUserLoanHistoryHandler) 
-	mux.HandleFunc("GET /api/admin/books/available", app.getBooksByGenreAndAuthorHandler) 
-	mux.HandleFunc("GET /api/admin/books/published", app.getBooksByPublicationDateHandler) 
+	mux.Handle("/docs/", httpSwagger.WrapHandler)
 
-	// Rutas para Usuario
-	mux.HandleFunc("GET /api/books", app.getBooksAvailableByGenreAndAuthorHandler) 
-	mux.HandleFunc("POST /api/loans", app.createLoanHandler)
-	mux.HandleFunc("GET /api/loans", app.getUserActiveLoanStatusHandler) 
-	mux.HandleFunc("GET /api/loans/completed", app.getUserCompletedLoanHistoryHandler) 
-	mux.HandleFunc("GET /api/fines", app.getUserPendingFinesHandler)
-	mux.HandleFunc("GET /api/reservations", app.getUserActiveReservationsHandler) // GET
+	// Rutas de estado
+	mux.HandleFunc("GET /v1/healthcheck", app.healthcheckHandler)
 
+	// Autenticación
+	mux.HandleFunc("POST /v1/api/login", app.loginHandler)
+	mux.HandleFunc("POST /v1/api/register", app.registerHandler)
 
-	mux.HandleFunc("POST /api/login", app.loginHandler)     
-	mux.HandleFunc("POST /api/register", app.registerHandler) 
+	// Usuario - Libros disponibles
+	mux.HandleFunc("GET  /v1/api/books", app.requirePermission(PermissionBooksRead, app.getBooksAvailableByGenreAndAuthorHandler))
+	mux.HandleFunc("GET  /v1/api/books/reservation", app.requirePermission(PermissionBooksRead, app.getBooksForReservationHandler))
 
-	// Rutas de Gestión de Libros
-	mux.HandleFunc("POST /api/admin/books", app.createBookHandler)       
-	mux.HandleFunc("PUT /api/admin/books/{id}", app.updateBookHandler)   
-	mux.HandleFunc("PUT /api/editoriales", app.createEditorialHandler)
-	mux.HandleFunc("GET /api/editoriales" , app.getEditorialsHandler)
-	mux.HandleFunc("GET /api/autores", app.getAutoresHandler)
+	// Admin - Libros
+	mux.HandleFunc("GET  /v1/api/admin/books", app.requirePermission(PermissionBooksRead, app.getFilteredBooksHandler))
+	mux.HandleFunc("GET  /v1/api/admin/books/{id}/edit", app.requirePermission(PermissionBooksRead, app.getBookForEditHandler))
+	mux.HandleFunc("GET  /v1/api/admin/books/unavailable", app.requirePermission(PermissionBooksRead, app.getUnavailableBooksHandler))
+	mux.HandleFunc("GET  /v1/api/admin/books/available", app.requirePermission(PermissionBooksRead, app.getBooksByGenreAndAuthorHandler))
+	mux.HandleFunc("GET  /v1/api/admin/books/published", app.requirePermission(PermissionBooksRead, app.getBooksByPublicationDateHandler))
+	mux.HandleFunc("POST /v1/api/admin/books", app.requirePermission(PermissionBooksWrite, app.createBookHandler))
+	mux.HandleFunc("POST /v1/api/admin/books/{id}", app.requirePermission(PermissionBooksWrite, app.updateBookHandler))
+	mux.HandleFunc("DELETE /v1/api/admin/books/{id}", app.requirePermission(PermissionBooksWrite, app.deleteBookHandler))
 
-	// Rutas de Gestión de Reservas
-	mux.HandleFunc("POST /api/reservation", app.createReservation)
-	mux.HandleFunc("DELETE /api/reservations/{id}", app.cancelReservationHandler) 
-	
-	// Rutas de Gestión de Préstamos
-	mux.HandleFunc("POST /api/loans/extend/{id}", app.extendLoanHandler) // POST - Extender préstamo
+	// Admin - Usuarios, préstamos, multas, reservas
+	mux.HandleFunc("POST /v1/api/admin/users", app.requirePermission(PermissionUsersManage, app.getUsersByTypeHandler))
+	mux.HandleFunc("GET /v1/api/admin/users/all", app.requirePermission(PermissionUsersManage, app.getAllUsersHandler))
+	mux.HandleFunc("POST /v1/api/admin/loans", app.requirePermission(PermissionLoansManage, app.getActiveLoansHandler))
+	mux.HandleFunc("GET  /v1/api/admin/fines/to", app.requirePermission(PermissionFinesRead, app.getPendingFinesHandler))
+	mux.HandleFunc("GET  /v1/api/admin/fines", app.requirePermission(PermissionFinesRead, app.getUserFinesHandler))
+	mux.HandleFunc("GET  /v1/api/admin/fines/search", app.requirePermission(PermissionFinesRead, app.searchFinesByUserHandler))
+	mux.HandleFunc("GET  /v1/api/admin/reservations", app.requirePermission(PermissionReservationsView, app.getActiveReservationsHandler))
+	mux.HandleFunc("GET  /v1/api/admin/loans/history", app.requirePermission(PermissionLoansView, app.getUserLoanHistoryHandler))
 
+	// Usuario - Préstamos y multas
+	mux.HandleFunc("POST /v1/api/loans", app.requirePermission(PermissionLoansCreate, app.createLoanHandler))
+	mux.HandleFunc("GET  /v1/api/loans", app.requirePermission(PermissionLoansView, app.getUserActiveLoanStatusHandler))
+	mux.HandleFunc("GET  /v1/api/loans/completed", app.requirePermission(PermissionLoansView, app.getUserCompletedLoanHistoryHandler))
+	mux.HandleFunc("POST   /v1/api/loans/return/{id}", app.requirePermission(PermissionLoansCreate, app.returnLoanHandler))
+	mux.HandleFunc("GET  /v1/api/fines", app.requirePermission(PermissionFinesRead, app.getUserPendingFinesHandler))
+	mux.HandleFunc("PUT  /v1/api/fines/{id}/pay", app.requirePermission(PermissionFinesCreate, app.payFineHandler))
+	mux.HandleFunc("GET  /v1/api/reservations", app.requirePermission(PermissionReservationsView, app.getUserActiveReservationsHandler))
 
-	c := cors.New(cors.Options{
-        //AllowedOrigins:   []string{"http://127.0.0.1:3000"}, // Dominios permitidos
-        AllowedOrigins:   []string{"http://localhost:3000"},
-        AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-        AllowedHeaders:   []string{"Content-Type", "Authorization"},
-        AllowCredentials: true,
-    })
+	// Editoriales y autores
+	mux.HandleFunc("POST /v1/api/editoriales", app.requirePermission(PublishersCreate, app.createEditorialHandler))
+	mux.HandleFunc("GET  /v1/api/editoriales", app.requirePermission(PublishersRead, app.getEditorialsHandler))
+	mux.HandleFunc("POST /v1/api/admin/autores", app.requirePermission(AuthorsCreate, app.createAutorHander))
+	mux.HandleFunc("GET  /v1/api/autores", app.requirePermission(AauthorsRead, app.getAutoresHandler))
 
-	
-	return c.Handler(mux)
+	// Reservas y extensiones
+	mux.HandleFunc("POST   /v1/api/reservation", app.requirePermission(PermissionReservationsCreate, app.createReservation))
+	mux.HandleFunc("DELETE /v1/api/reservations/{id}", app.requirePermission(PermissionReservationsCreate, app.cancelReservationHandler))
+	mux.HandleFunc("POST   /v1/api/loans/extend/{id}", app.requirePermission(PermissionReservationsCreate, app.extendLoanHandler))
+
+	// Encadenar middlewares
+	return app.recoverPanic(
+		app.enableCORS(
+			app.rateLimit(
+				app.authenticate(mux),
+			),
+		),
+	)
 }

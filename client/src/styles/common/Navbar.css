@@ -1,0 +1,79 @@
+/* Estilos para Navbar.jsx */
+
+.navbar {
+  background: #007bff;
+  color: #fff;
+  padding: 16px 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+.navbar ul {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.navbar li {
+  display: flex;
+  align-items: center;
+}
+
+.navbar-logo {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #fff;
+  text-decoration: none;
+}
+
+.navbar-links {
+  display: flex;
+  gap: 24px;
+}
+
+.navbar-link {
+  color: #fff;
+  text-decoration: none;
+  font-size: 1rem;
+  transition: color 0.2s;
+}
+
+.navbar-link:hover {
+  color: #f4f5f7;
+}
+
+.navbar-user {
+  font-size: 1rem;
+  color: #fff;
+  margin-left: 16px;
+}
+
+.navbar-logout {
+  background: #e74c3c;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 16px;
+  cursor: pointer;
+  margin-left: 16px;
+  font-size: 1rem;
+  transition: background 0.2s;
+}
+
+.navbar-logout:hover {
+  background: #c0392b;
+}
+
+/* DEBUG: Forzar visibilidad del botón logout */
+.debug-logout {
+  background: yellow !important;
+  color: red !important;
+  border: 2px solid red !important;
+  font-weight: bold !important;
+  z-index: 9999;
+} 

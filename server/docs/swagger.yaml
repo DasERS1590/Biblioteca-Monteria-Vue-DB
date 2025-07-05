@@ -1,0 +1,1000 @@
+basePath: /v1
+definitions:
+  data.Author:
+    properties:
+      idautor:
+        type: integer
+      nacionalidad:
+        type: string
+      nombre:
+        type: string
+    type: object
+  data.Book:
+    properties:
+      fechapublicacion:
+        type: string
+      genero:
+        type: string
+      idautores:
+        items:
+          type: integer
+        type: array
+      ideditorial:
+        type: integer
+      idlibro:
+        type: integer
+      status:
+        type: string
+      titulo:
+        type: string
+    type: object
+  data.Editorial:
+    properties:
+      direccion:
+        type: string
+      nombre:
+        type: string
+      paginaweb:
+        type: string
+    type: object
+  data.Fine:
+    properties:
+      estado:
+        type: string
+      fechamulta:
+        type: string
+      idmulta:
+        type: integer
+      idprestamo:
+        type: integer
+      saldopagar:
+        type: number
+    type: object
+  data.Loan:
+    properties:
+      fecha_devolucion:
+        type: string
+      fecha_prestamo:
+        type: string
+      libro_id:
+        type: integer
+      usuario_id:
+        type: integer
+    type: object
+  data.NewAuthor:
+    properties:
+      name:
+        type: string
+      nationality:
+        type: string
+    type: object
+  data.Reservation:
+    properties:
+      fechareserva:
+        type: string
+      idlibro:
+        type: integer
+      idsocio:
+        type: integer
+    type: object
+  data.User_:
+    properties:
+      correo:
+        type: string
+      direccion:
+        type: string
+      fechanacimiento:
+        type: string
+      fecharegistro:
+        type: string
+      id:
+        type: integer
+      nombre:
+        type: string
+      rol:
+        type: string
+      telefono:
+        type: string
+      tiposocio:
+        type: string
+    type: object
+  main.Credentials:
+    properties:
+      contrasena:
+        type: string
+      correo:
+        type: string
+    type: object
+  main.RegisterRequest:
+    properties:
+      contrasena:
+        type: string
+      correo:
+        type: string
+      direccion:
+        type: string
+      fecha_nacimiento:
+        type: string
+      nombre:
+        type: string
+      rol:
+        type: string
+      telefono:
+        type: string
+      tipo_socio:
+        type: string
+    type: object
+info:
+  contact: {}
+  description: Rest-Api for library
+  title: BibliotecaAPI
+  version: "1.0"
+paths:
+  /api/admin/autores:
+    post:
+      consumes:
+      - application/json
+      description: Create a new author
+      parameters:
+      - description: Create an author
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/data.NewAuthor'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/data.Author'
+      security:
+      - BearerAuth: []
+      summary: Create author
+      tags:
+      - Authors
+  /api/admin/books:
+    get:
+      consumes:
+      - application/json
+      description: Get books filtered by estado and editorial
+      parameters:
+      - description: Estado filter
+        in: query
+        name: estado
+        type: string
+      - description: Editorial filter
+        in: query
+        name: editorial
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/data.Book'
+            type: array
+      summary: Get filtered books
+      tags:
+      - Books
+    post:
+      consumes:
+      - application/json
+      description: Creates a new book and stores it in the database
+      parameters:
+      - description: Book input
+        in: body
+        name: book
+        required: true
+        schema:
+          $ref: '#/definitions/data.Book'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/data.Book'
+      security:
+      - BearerAuth: []
+      summary: Create a new book
+      tags:
+      - Books
+  /api/admin/books/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete a book by ID
+      parameters:
+      - description: Book ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Book deleted successfully
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Delete a book
+      tags:
+      - Books
+    post:
+      consumes:
+      - application/json
+      description: Updates an existing book by ID
+      parameters:
+      - description: Book ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Book input
+        in: body
+        name: book
+        required: true
+        schema:
+          $ref: '#/definitions/data.Book'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/data.Book'
+      security:
+      - BearerAuth: []
+      summary: Update a book
+      tags:
+      - Books
+  /api/admin/books/{id}/edit:
+    get:
+      consumes:
+      - application/json
+      description: Get book details for editing by ID
+      parameters:
+      - description: Book ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/data.Book'
+      security:
+      - BearerAuth: []
+      summary: Get book for editing
+      tags:
+      - Books
+  /api/admin/books/unavailable:
+    get:
+      consumes:
+      - application/json
+      description: Get books that are currently unavailable
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/data.Book'
+            type: array
+      summary: Get unavailable books
+      tags:
+      - Books
+  /api/admin/fines:
+    get:
+      consumes:
+      - application/json
+      description: Get fines for a specific user
+      parameters:
+      - description: User ID
+        in: query
+        name: idsocio
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/data.Fine'
+            type: array
+      summary: Get user fines
+      tags:
+      - Multas
+  /api/admin/fines/search:
+    get:
+      consumes:
+      - application/json
+      description: Search fines by user name or email
+      parameters:
+      - description: Search term (name or email)
+        in: query
+        name: busqueda
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/data.Fine'
+            type: array
+      security:
+      - BearerAuth: []
+      summary: Search fines by user
+      tags:
+      - Multas
+  /api/admin/fines/to:
+    get:
+      consumes:
+      - application/json
+      description: Get all pending fines for admin
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/data.Fine'
+            type: array
+      security:
+      - BearerAuth: []
+      summary: Get pending fines
+      tags:
+      - Multas
+  /api/admin/loans:
+    post:
+      consumes:
+      - application/json
+      description: Retorna todos los préstamos activos en un rango de fechas específico
+        para administradores
+      parameters:
+      - description: Fecha de inicio (YYYY-MM-DD)
+        in: query
+        name: startdate
+        required: true
+        type: string
+      - description: Fecha de fin (YYYY-MM-DD)
+        in: query
+        name: enddate
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Lista de préstamos activos
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Parámetros de fecha faltantes o inválidos
+          schema:
+            type: string
+        "403":
+          description: No tienes permisos para acceder a este recurso
+          schema:
+            type: string
+        "500":
+          description: Error interno del servidor
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Obtener préstamos activos por rango de fechas
+      tags:
+      - Prestamos
+  /api/admin/reservations:
+    get:
+      consumes:
+      - application/json
+      description: Get active reservations with filters
+      parameters:
+      - description: User ID
+        in: query
+        name: idsocio
+        type: string
+      - description: Book ID
+        in: query
+        name: idlibro
+        type: string
+      - description: Reservation date
+        in: query
+        name: fechareserva
+        type: string
+      - description: User name
+        in: query
+        name: nombre_socio
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/data.Reservation'
+            type: array
+      security:
+      - BearerAuth: []
+      summary: Get active reservations
+      tags:
+      - Reservas
+  /api/admin/users:
+    post:
+      consumes:
+      - application/json
+      description: Get users filtered by type (normal, estudiante, profesor)
+      parameters:
+      - description: User type (normal, estudiante, profesor)
+        in: query
+        name: tiposocio
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/data.User_'
+            type: array
+      security:
+      - BearerAuth: []
+      summary: Get users by type
+      tags:
+      - Usuarios
+  /api/admin/users/all:
+    get:
+      consumes:
+      - application/json
+      description: Get all users in the system
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/data.User_'
+            type: array
+      security:
+      - BearerAuth: []
+      summary: Get all users
+      tags:
+      - Usuarios
+  /api/autores:
+    get:
+      consumes:
+      - application/json
+      description: Returns all authors
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/data.Author'
+            type: array
+      security:
+      - BearerAuth: []
+      summary: Get all authors
+      tags:
+      - Authors
+  /api/books:
+    get:
+      consumes:
+      - application/json
+      description: Get books filtered by genre and author
+      parameters:
+      - description: Genre filter
+        in: query
+        name: genero
+        type: string
+      - description: Author filter
+        in: query
+        name: autor
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/data.Book'
+            type: array
+      summary: Get books by genre and author
+      tags:
+      - Books
+  /api/books/available:
+    get:
+      consumes:
+      - application/json
+      description: Get available books filtered by genre, author and title
+      parameters:
+      - description: Genre filter
+        in: query
+        name: genero
+        type: string
+      - description: Author filter
+        in: query
+        name: autor
+        type: string
+      - description: Title filter
+        in: query
+        name: titulo
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/data.Book'
+            type: array
+      summary: Get available books by criteria
+      tags:
+      - Books
+  /api/books/publication-date:
+    get:
+      consumes:
+      - application/json
+      description: Get books published within a date range
+      parameters:
+      - description: Start date (YYYY-MM-DD)
+        in: query
+        name: start_date
+        required: true
+        type: string
+      - description: End date (YYYY-MM-DD)
+        in: query
+        name: end_date
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/data.Book'
+            type: array
+      summary: Get books by publication date
+      tags:
+      - Books
+  /api/books/reservation:
+    get:
+      consumes:
+      - application/json
+      description: Get books that can be reserved
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/data.Book'
+            type: array
+      summary: Get books for reservation
+      tags:
+      - Books
+  /api/editoriales:
+    get:
+      consumes:
+      - application/json
+      description: Get all editorials
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/data.Editorial'
+            type: array
+      summary: Get editorials
+      tags:
+      - Editoriales
+    post:
+      consumes:
+      - application/json
+      description: Create a new editorial
+      parameters:
+      - description: Editorial data
+        in: body
+        name: editorial
+        required: true
+        schema:
+          $ref: '#/definitions/data.Editorial'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/data.Editorial'
+      security:
+      - BearerAuth: []
+      summary: Create editorial
+      tags:
+      - Editoriales
+  /api/fines:
+    get:
+      consumes:
+      - application/json
+      description: Get pending fines for a specific user
+      parameters:
+      - description: User ID
+        in: query
+        name: usuario_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/data.Fine'
+            type: array
+      summary: Get user pending fines
+      tags:
+      - Multas
+  /api/fines/{id}/pay:
+    put:
+      consumes:
+      - application/json
+      description: Mark a fine as paid
+      parameters:
+      - description: Fine ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Payment confirmation
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Pay fine
+      tags:
+      - Multas
+  /api/loans:
+    get:
+      consumes:
+      - application/json
+      description: Retorna todos los préstamos activos asociados a un usuario por
+        su ID.
+      parameters:
+      - description: ID del usuario
+        in: query
+        name: usuario_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Lista de préstamos activos del usuario
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Parámetro 'usuario_id' faltante o inválido
+          schema:
+            type: string
+        "404":
+          description: No hay préstamos activos para este usuario
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Error interno del servidor
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Obtener préstamos activos de un usuario
+      tags:
+      - Prestamos
+    post:
+      consumes:
+      - application/json
+      description: Crea un nuevo préstamo para un usuario autenticado.
+      parameters:
+      - description: Crear prestamo
+        in: body
+        name: loan
+        required: true
+        schema:
+          $ref: '#/definitions/data.Loan'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Préstamo creado exitosamente
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Solicitud mal formada o parámetros faltantes
+          schema:
+            type: string
+        "401":
+          description: 'No autorizado: token JWT inválido o ausente'
+          schema:
+            type: string
+        "500":
+          description: Error interno del servidor
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Crear un nuevo préstamo
+      tags:
+      - Prestamos
+  /api/loans/completed:
+    get:
+      consumes:
+      - application/json
+      description: Get completed loan history for a specific user
+      parameters:
+      - description: User ID
+        in: query
+        name: idsocio
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/data.Loan'
+            type: array
+      summary: Get user completed loan history
+      tags:
+      - Prestamos
+  /api/loans/extend/{id}:
+    post:
+      consumes:
+      - application/json
+      description: Extend the return date of a loan
+      parameters:
+      - description: Loan ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: New return date
+        in: body
+        name: request
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Loan extended successfully
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Extend loan
+      tags:
+      - Prestamos
+  /api/loans/history:
+    get:
+      consumes:
+      - application/json
+      description: Get loan history for a specific user
+      parameters:
+      - description: User ID
+        in: query
+        name: idsocio
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/data.Loan'
+            type: array
+      summary: Get user loan history
+      tags:
+      - Prestamos
+  /api/loans/return/{id}:
+    post:
+      consumes:
+      - application/json
+      description: Mark a loan as returned
+      parameters:
+      - description: Loan ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Loan returned successfully
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Return loan
+      tags:
+      - Prestamos
+  /api/login:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Credenciales de login
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/main.Credentials'
+      produces:
+      - application/json
+      responses: {}
+      summary: Login a los Usuarios
+      tags:
+      - Autenticacion
+  /api/register:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Register credentials
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/main.RegisterRequest'
+      produces:
+      - application/json
+      responses: {}
+      summary: Registro Para nuevos usuarios
+      tags:
+      - Autenticacion
+  /api/reservation:
+    post:
+      consumes:
+      - application/json
+      description: Create a new book reservation
+      parameters:
+      - description: Reservation data
+        in: body
+        name: reservation
+        required: true
+        schema:
+          $ref: '#/definitions/data.Reservation'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/data.Reservation'
+      security:
+      - BearerAuth: []
+      summary: Create reservation
+      tags:
+      - Reservas
+  /api/reservations:
+    get:
+      consumes:
+      - application/json
+      description: Get active reservations for a specific user
+      parameters:
+      - description: User ID
+        in: query
+        name: usuario_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/data.Reservation'
+            type: array
+      summary: Get user active reservations
+      tags:
+      - Reservas
+  /api/reservations/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Cancel an existing reservation
+      parameters:
+      - description: Reservation ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Reservation cancelled successfully
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Cancel reservation
+      tags:
+      - Reservas
+  /healthcheck:
+    get:
+      consumes:
+      - application/json
+      description: Provides information about the current system status and version
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              status:
+                type: string
+              system_info:
+                properties:
+                  environment:
+                    type: string
+                  version:
+                    type: string
+                type: object
+            type: object
+      summary: Check system status
+      tags:
+      - health
+securityDefinitions:
+  BearerAuth:
+    description: Type "Bearer " followed by your JWT token.
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

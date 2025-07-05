@@ -1,210 +1,414 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
+import { useApiGet, useApiMutation, useForm, useFilters } from "../../hooks/useApi";
+import { bookService } from "../../services/bookService";
+import { authorService } from "../../services/authorService";
+import { editorialService } from "../../services/editorialService";
+import DataTable from "../common/DataTable";
+import FilterForm from "../common/FilterForm";
+import Modal from "../common/Modal";
+import ConfirmDialog from "../common/ConfirmDialog";
+import "../../styles/admin/Books.css";
+import "../../styles/common/Modal.css";
 
-const Books = () => {
-  const [books, setBooks] = useState([]); // Estado para guardar los libros
-  const [filters, setFilters] = useState({ estado: "", editorial: "" }); // Estado para los filtros
-  const [loading, setLoading] = useState(true); // Estado para el indicador de carga
-  const [error, setError] = useState(null); // Estado para los errores
+function Books() {
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [selectedBook, setSelectedBook] = useState(null);
+  const [authors, setAuthors] = useState([]);
+  const [editorials, setEditorials] = useState([]);
+  const [editBookDraft, setEditBookDraft] = useState(null);
+  const [editFormReady, setEditFormReady] = useState(false);
 
-  // Función para obtener los libros desde la API
-  const fetchBooks = async () => {
-    try {
-      setLoading(true); // Inicia la carga
-      setError(null); // Limpia errores previos
-      const response = await axios.get("http://localhost:4000/api/admin/books", {
-        params: filters, // Agrega los filtros a la consulta
+  const { filters, updateFilter, clearFilters } = useFilters({
+    titulo: "",
+    genero: "",
+    autor: "",
+    editorial: ""
+  });
+
+  // Estado separado para el formulario de editar
+  const { formData: editFormData, handleChange: handleEditChange, resetForm: resetEditForm, setFormData: setEditFormData } = useForm({
+    titulo: "",
+    genero: "",
+    autor_id: "",
+    editorial_id: "",
+    anio_publicacion: "",
+    estado: "disponible"
+  });
+
+  const { data: booksData, loading, error, refetch } = useApiGet(
+    () => bookService.getBooks(filters),
+    [filters]
+  );
+
+  const { execute: updateBook, loading: updateLoading, error: updateError, success: updateSuccess, reset: resetUpdate } = useApiMutation(
+    (data) => bookService.updateBook(selectedBook?.id_libro, data)
+  );
+
+  const { execute: deleteBook, loading: deleteLoading, error: deleteError, success: deleteSuccess, reset: resetDelete } = useApiMutation(
+    (bookId) => bookService.deleteBook(bookId)
+  );
+
+  const { data: authorsData } = useApiGet(
+    () => authorService.getAuthors(),
+    []
+  );
+
+  const { data: editorialsData } = useApiGet(
+    () => editorialService.getEditorials(),
+    []
+  );
+
+  React.useEffect(() => {
+    if (authorsData?.authors) {
+      setAuthors(authorsData.authors);
+    }
+    if (editorialsData?.editorials) {
+      setEditorials(editorialsData.editorials);
+    }
+  }, [authorsData, editorialsData]);
+
+  useEffect(() => {
+    if (
+      showEditModal &&
+      editBookDraft &&
+      authors.length > 0 &&
+      editorials.length > 0
+    ) {
+      setEditFormData({
+        titulo: editBookDraft.titulo || "",
+        genero: editBookDraft.genero || "",
+        autor_id:
+          editBookDraft.autores && editBookDraft.autores.length > 0
+            ? String(editBookDraft.autores[0])
+            : "",
+        editorial_id: editBookDraft.editorial_id
+          ? String(editBookDraft.editorial_id)
+          : "",
+        anio_publicacion: editBookDraft.fecha_publicacion
+          ? editBookDraft.fecha_publicacion.split("-")[0]
+          : "",
+        estado: editBookDraft.estado || "disponible",
       });
-      setBooks(response.data); // Guarda los datos en el estado
-    } catch (err) {
-      setError("Error al obtener los libros. Por favor, intenta más tarde.");
-    } finally {
-      setLoading(false); // Finaliza la carga
+      setEditBookDraft(null);
+    }
+  }, [showEditModal, editBookDraft, authors, editorials, setEditFormData]);
+
+  const handleUpdateBook = async (e) => {
+    e.preventDefault();
+    try {
+      const bookData = {
+        titulo: editFormData.titulo,
+        genero: editFormData.genero,
+        fechapublicacion: editFormData.anio_publicacion ? `${editFormData.anio_publicacion}-01-01` : "",
+        ideditorial: parseInt(editFormData.editorial_id),
+        idautores: [parseInt(editFormData.autor_id)]
+      };
+      
+      await updateBook(bookData);
+      resetEditForm();
+      setShowEditModal(false);
+      setSelectedBook(null);
+      refetch();
+    } catch (error) {
+      // El error se maneja en el hook
     }
   };
 
-  // Ejecuta fetchBooks al cargar el componente o cuando los filtros cambien
-  useEffect(() => {
-    fetchBooks();
-  }, [filters]);
+  const handleDeleteBook = async () => {
+    if (!selectedBook) {return;}
 
-  // Maneja cambios en los inputs de filtros
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFilters((prevFilters) => ({
-      ...prevFilters,
-      [name]: value,
-    }));
+    try {
+      await deleteBook(selectedBook.id_libro);
+      setShowDeleteDialog(false);
+      setSelectedBook(null);
+      refetch();
+    } catch (error) {
+      // El error se maneja en el hook
+    }
   };
 
-  return (
-    <div style={styles.container}>
-      <h1 style={styles.title}>Admin Dashboard - Libros</h1>
+  const openEditModal = async (book) => {
+    setSelectedBook(book);
+    setEditFormReady(false);
+    setShowEditModal(true);
 
-      {/* Filtros en la parte superior */}
-      <div style={styles.filterContainer}>
-        <label style={styles.label}>
-          Estado:
-          <input
-            type="text"
-            name="estado"
-            value={filters.estado}
-            onChange={handleInputChange}
-            placeholder="Ej: disponible"
-            style={styles.input}
-          />
-        </label>
-        <label style={styles.label}>
-          Editorial:
-          <input
-            type="text"
-            name="editorial"
-            value={filters.editorial}
-            onChange={handleInputChange}
-            placeholder="Ej: Santillana"
-            style={styles.input}
-          />
-        </label>
-        <button onClick={fetchBooks} style={styles.button}>
-          Buscar
-        </button>
-      </div>
+    try {
+      const response = await bookService.getBookForEdit(book.id_libro);
+      const bookData = response.book;
 
-      {/* Indicador de carga */}
-      {loading && <p style={styles.loading}>Cargando libros...</p>}
+      // Espera a que autores y editoriales estén cargados
+      const waitForData = () => {
+        if (authors.length > 0 && editorials.length > 0) {
+          setEditFormData({
+            titulo: bookData.titulo || "",
+            genero: bookData.genero || "",
+            autor_id: bookData.autores && bookData.autores.length > 0 ? String(bookData.autores[0]) : "",
+            editorial_id: bookData.editorial_id ? String(bookData.editorial_id) : "",
+            anio_publicacion: bookData.fecha_publicacion ? bookData.fecha_publicacion.split('-')[0] : "",
+            estado: bookData.estado || "disponible"
+          });
+          setEditFormReady(true);
+        } else {
+          setTimeout(waitForData, 50);
+        }
+      };
+      waitForData();
+    } catch (error) {
+      setEditFormData({
+        titulo: book.titulo || "",
+        genero: book.genero || "",
+        autor_id: "",
+        editorial_id: "",
+        anio_publicacion: "",
+        estado: book.estado || "disponible"
+      });
+      setEditFormReady(true);
+    }
+    resetUpdate();
+  };
 
-      {/* Error */}
-      {error && <p style={styles.error}>{error}</p>}
+  const openDeleteDialog = (book) => {
+    setSelectedBook(book);
+    setShowDeleteDialog(true);
+    resetDelete();
+  };
 
-      {/* Resultados debajo de los filtros */}
-      {!loading && !error && (
-        <div style={styles.bookList}>
-          <h2 style={styles.sectionTitle}>Libros</h2>
-          {books.length === 0 ? (
-            <p style={styles.noResults}>No se encontraron libros con los filtros seleccionados.</p>
-          ) : (
-            <table style={styles.table}>
-              <thead>
-                <tr>
-                  <th style={styles.th}>Título</th>
-                  <th style={styles.th}>Género</th>
-                  <th style={styles.th}>Estado</th>
-                  <th style={styles.th}>Editorial</th>
-                </tr>
-              </thead>
-              <tbody>
-                {books.map((book) => (
-                  <tr key={book.id} style={styles.row}>
-                    <td style={styles.td}>{book.title}</td>
-                    <td style={styles.td}>{book.genre}</td>
-                    <td style={styles.td}>{book.status}</td>
-                    <td style={styles.td}>{book.editorial}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
+  const closeEditModal = () => {
+    setShowEditModal(false);
+    setSelectedBook(null);
+    resetEditForm();
+    resetUpdate();
+  };
+
+  const filterConfig = [
+    {
+      name: "titulo",
+      placeholder: "Título del libro",
+      value: filters.titulo
+    },
+    {
+      name: "genero",
+      placeholder: "Género",
+      value: filters.genero
+    },
+    {
+      name: "autor",
+      placeholder: "Autor",
+      value: filters.autor
+    },
+    {
+      name: "editorial",
+      placeholder: "Editorial",
+      value: filters.editorial
+    }
+  ];
+
+  const columns = [
+    { key: 'id_libro', label: 'ID' },
+    { key: 'titulo', label: 'Título' },
+    { key: 'genero', label: 'Género' },
+    { key: 'autor', label: 'Autor' },
+    { key: 'editorial', label: 'Editorial' },
+    { key: 'anio_publicacion', label: 'Año' },
+    { key: 'estado', label: 'Estado', render: (value) => (
+      <span className={`status ${value}`}>{value}</span>
+    )},
+    { 
+      key: 'actions', 
+      label: 'Acciones',
+      render: (_, book) => (
+        <div className="book-actions">
+          <button 
+            className="btn btn-primary btn-sm"
+            onClick={() => openEditModal(book)}
+          >
+            Editar
+          </button>
+          <button 
+            className="btn btn-danger btn-sm"
+            onClick={() => openDeleteDialog(book)}
+          >
+            Eliminar
+          </button>
         </div>
+      )
+    }
+  ];
+
+  const books = booksData?.books || [];
+
+  return (
+    <div className="books-dashboard">
+      <div className="books-header">
+        <h1>Gestión de Libros</h1>
+      </div>
+      
+      <p className="books-description">Administra el catálogo de libros de la biblioteca.</p>
+      
+      <FilterForm
+        filters={filterConfig}
+        onFilterChange={updateFilter}
+        onSearch={() => refetch()}
+        onClear={clearFilters}
+        loading={loading}
+      />
+      
+      <DataTable
+        columns={columns}
+        data={books}
+        loading={loading}
+        error={error}
+        emptyMessage="No se encontraron libros."
+        className="books-table"
+      />
+
+
+
+      {/* Modal para editar libro */}
+      <Modal
+        isOpen={showEditModal}
+        onClose={closeEditModal}
+        title="Editar Libro"
+        className="book-modal"
+      >
+        {!editFormReady ? (
+          <div style={{ textAlign: "center", padding: "2rem" }}>Cargando datos...</div>
+        ) : (
+          <form onSubmit={handleUpdateBook} className="book-form">
+            <div className="form-row">
+              <div className="form-group">
+                <label>Título:</label>
+                <input
+                  type="text"
+                  name="titulo"
+                  value={editFormData.titulo}
+                  onChange={handleEditChange}
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label>Género:</label>
+                <input
+                  type="text"
+                  name="genero"
+                  value={editFormData.genero}
+                  onChange={handleEditChange}
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="form-row">
+              <div className="form-group">
+                <label>Autor:</label>
+                <select
+                  name="autor_id"
+                  value={editFormData.autor_id || ""}
+                  onChange={handleEditChange}
+                  required
+                >
+                  {editFormData.autor_id === "" && <option value="">Seleccionar autor</option>}
+                  {authors.map((author) => (
+                    <option key={author.id_autor} value={String(author.id_autor)}>
+                      {author.nombre}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="form-group">
+                <label>Editorial:</label>
+                <select
+                  name="editorial_id"
+                  value={editFormData.editorial_id || ""}
+                  onChange={handleEditChange}
+                  required
+                >
+                  {editFormData.editorial_id === "" && <option value="">Seleccionar editorial</option>}
+                  {editorials.map((editorial) => (
+                    <option key={editorial.id_editorial} value={String(editorial.id_editorial)}>
+                      {editorial.nombre}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="form-row">
+              <div className="form-group">
+                <label>Año de Publicación:</label>
+                <input
+                  type="number"
+                  name="anio_publicacion"
+                  value={editFormData.anio_publicacion}
+                  onChange={handleEditChange}
+                  min="1900"
+                  max={new Date().getFullYear()}
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label>Estado:</label>
+                <select
+                  name="estado"
+                  value={editFormData.estado}
+                  onChange={handleEditChange}
+                  required
+                >
+                  <option value="disponible">Disponible</option>
+                  <option value="prestado">Prestado</option>
+                  <option value="mantenimiento">Mantenimiento</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="form-actions">
+              <button
+                type="submit"
+                className="btn btn-primary"
+                disabled={updateLoading}
+              >
+                {updateLoading ? "Actualizando..." : "Actualizar Libro"}
+              </button>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={closeEditModal}
+              >
+                Cancelar
+              </button>
+            </div>
+
+            {updateError && <div className="error-message">{updateError}</div>}
+            {updateSuccess && <div className="success-message">Libro actualizado exitosamente</div>}
+          </form>
+        )}
+      </Modal>
+
+      {/* Diálogo de confirmación para eliminar */}
+      <ConfirmDialog
+        isOpen={showDeleteDialog}
+        title="Eliminar Libro"
+        message={`¿Estás seguro de que quieres eliminar el libro "${selectedBook?.titulo}"? Esta acción no se puede deshacer.`}
+        onConfirm={handleDeleteBook}
+        onCancel={() => {
+          setShowDeleteDialog(false);
+          setSelectedBook(null);
+        }}
+        confirmText={deleteLoading ? "Eliminando..." : "Eliminar"}
+        cancelText="Cancelar"
+        type="danger"
+        disabled={deleteLoading}
+      />
+
+      {deleteError && (
+        <div className="error-message">{deleteError}</div>
+      )}
+      {deleteSuccess && (
+        <div className="success-message">Libro eliminado exitosamente</div>
       )}
     </div>
   );
-};
-
-// Estilos embebidos
-const styles = {
-  container: {
-    fontFamily: "Arial, sans-serif",
-    padding: "20px",
-    maxWidth: "1000px",
-    margin: "0 auto",
-    backgroundColor: "#f9f9f9",
-    borderRadius: "8px",
-    boxShadow: "0 4px 8px rgba(0, 0, 0, 0.1)",
-  },
-  title: {
-    fontSize: "24px",
-    color: "#333",
-    marginBottom: "20px",
-    textAlign: "center",
-  },
-  filterContainer: {
-    display: "flex",
-    gap: "15px",
-    marginBottom: "20px",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  label: {
-    display: "flex",
-    flexDirection: "column",
-    fontSize: "14px",
-    color: "#333",
-  },
-  input: {
-    padding: "10px",
-    fontSize: "14px",
-    borderRadius: "4px",
-    border: "1px solid #ccc",
-    marginTop: "5px",
-  },
-  button: {
-    padding: "10px 20px",
-    fontSize: "14px",
-    backgroundColor: "#007bff",
-    color: "#fff",
-    border: "none",
-    borderRadius: "4px",
-    cursor: "pointer",
-    alignSelf: "flex-end",
-  },
-  buttonHover: {
-    backgroundColor: "#0056b3",
-  },
-  loading: {
-    fontSize: "16px",
-    color: "#007bff",
-    textAlign: "center",
-  },
-  error: {
-    fontSize: "14px",
-    color: "red",
-    textAlign: "center",
-  },
-  bookList: {
-    marginTop: "20px",
-  },
-  sectionTitle: {
-    fontSize: "20px",
-    color: "#333",
-    marginBottom: "10px",
-    textAlign: "center",
-  },
-  noResults: {
-    fontSize: "14px",
-    color: "#555",
-    textAlign: "center",
-  },
-  table: {
-    width: "100%",
-    borderCollapse: "collapse",
-    marginTop: "20px",
-  },
-  th: {
-    backgroundColor: "#007bff",
-    color: "#fff",
-    padding: "10px",
-    textAlign: "left",
-  },
-  td: {
-    border: "1px solid #ddd",
-    padding: "10px",
-    textAlign: "left",
-  },
-  row: {
-    "&:nth-child(even)": {
-      backgroundColor: "#f2f2f2",
-    },
-  },
-};
+}
 
 export default Books;

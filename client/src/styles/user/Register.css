@@ -1,0 +1,83 @@
+/* Estilos para Register.jsx (User) */
+.register-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  background-color: #f3f4f6;
+}
+
+.register-box {
+  background-color: #fff;
+  padding: 1.5rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.06);
+  width: 100%;
+  max-width: 400px;
+  text-align: center;
+}
+
+.register-header {
+  font-size: 24px;
+  color: #10b981;
+  margin-bottom: 1rem;
+  font-weight: 600;
+}
+
+.input-group {
+  margin-bottom: 0.75rem;
+}
+
+.inputs, .register-box input, .register-box select {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 1rem;
+  background-color: #f9fafb;
+  color: #4b5563;
+  transition: border 0.2s;
+}
+
+.inputs:focus, .register-box input:focus, .register-box select:focus {
+  outline: none;
+  border-color: #10b981;
+}
+
+.login-btn {
+  width: 100%;
+  padding: 0.75rem;
+  background-color: #10b981;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+  margin-top: 0.5rem;
+}
+
+.login-btn:hover {
+  background-color: #16a34a;
+}
+
+.create-acount a {
+  color: #10b981;
+  text-decoration: none;
+  font-size: 14px;
+}
+
+.create-acount a:hover {
+  text-decoration: underline;
+}
+
+.error-message {
+  color: #e74c3c;
+  margin-top: 10px;
+}
+
+.success-message {
+  color: #27ae60;
+  margin-top: 10px;
+} 

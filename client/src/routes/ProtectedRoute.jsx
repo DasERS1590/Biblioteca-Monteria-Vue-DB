@@ -1,34 +1,41 @@
+import React, { useState, useEffect } from "react";
 import { Navigate } from "react-router-dom";
-import { useState } from "react";
-import { useEffect } from "react";
 
 const ProtectedRoute = ({ children, allowedRoles }) => {
-  const [isLoading, setIsLoading] = useState(true); 
+  const [isLoading, setIsLoading] = useState(true);
   const [user, setUser] = useState(null);
 
   useEffect(() => {
     const storedUser = JSON.parse(localStorage.getItem("user"));
     if (storedUser) {
-      setUser(storedUser);  // Establece el usuario desde localStorage
+      setUser(storedUser);
     }
-    setIsLoading(false); // Marca como cargado después de obtener los datos
+    setIsLoading(false);
   }, []);
 
   if (isLoading) {
-    return <p>Cargando...</p>; // Muestra un mensaje de "Cargando..." mientras se obtienen los datos
+    return <p>Cargando...</p>;
   }
 
   if (!user) {
-    alert("Acceso denegado");
+    alert("Acceso denegado. Debes iniciar sesión.");
     return <Navigate to="/login" />;
   }
 
   if (allowedRoles && !allowedRoles.includes(user.rol)) {
-    alert("No tiene Permiso");
-    return <Navigate to="/login" />;
+    // Determinar la ruta correcta basada en el rol del usuario
+    let redirectPath = "/";
+    if (user.rol === "administrador") {
+      redirectPath = "/admin/dashboard";
+    } else if (user.rol === "usuario") {
+      redirectPath = "/user/dashboard";
+    }
+    
+    alert(`No tienes permisos para acceder a esta sección. Redirigiendo a tu dashboard.`);
+    return <Navigate to={redirectPath} />;
   }
-
-  return children; // Si el usuario es válido, muestra los componentes hijos
+  
+  return children;
 };
 
 export default ProtectedRoute;

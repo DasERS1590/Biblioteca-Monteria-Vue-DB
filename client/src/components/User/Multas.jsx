@@ -1,82 +1,119 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from "react";
+import { useLoansGet, useApiMutation } from "../../hooks/useApi";
+import { fineService } from "../../services/fineService";
+import DataTable from "../common/DataTable";
+import ConfirmDialog from "../common/ConfirmDialog";
+import { getIdUser } from "../../auth";
+import "../../styles/user/Multas.css";
 
 const Multa = () => {
-  const [fines, setFines] = useState([]);  // Estado para las multas
-  const [loading, setLoading] = useState(true);  // Estado de carga
-  const [error, setError] = useState(null);  // Estado de error
+  const user_id = getIdUser();
+  const [showPayDialog, setShowPayDialog] = useState(false);
+  const [selectedFine, setSelectedFine] = useState(null);
+  
+  const { data: finesData, loading, error, refetch } = useLoansGet(
+    () => fineService.getUserFines(user_id),
+    [user_id]
+  );
 
-  useEffect(() => {
-    // Recuperar el usuario desde localStorage
-    const user = JSON.parse(localStorage.getItem("user"));
-    
-    if (user) {
-      console.log("Usuario logueado:", user);
-      console.log("Rol del usuario:", user.rol);
+  const { execute: payFine, loading: payLoading, error: payError, success: paySuccess, reset: resetPay } = useApiMutation(
+    (fineId) => fineService.payFine(fineId)
+  );
 
-      // Realizar la solicitud GET para obtener las multas pendientes
-      fetch(`http://localhost:4000/api/fines?usuario_id=${user.id}`)
-        .then((response) => {
-          if (!response.ok) {
-            throw new Error("No existen multas pendientes");
-          }
-          return response.json();
-        })
-        .then((data) => {
-          // Si no hay multas pendientes, mostrar un mensaje
-          if (data.message) {
-            setError(data.message);  // Mostrar mensaje en caso de que no haya multas
-          } else {
-            setFines(data);  // Guardar multas pendientes en el estado
-          }
-          setLoading(false);  // Terminar el estado de carga
-        })
-        .catch((err) => {
-          setError(err.message);  // Capturar errores y mostrar el mensaje
-          setLoading(false);  // Terminar el estado de carga
-        });
-    } else {
-      setError("No hay usuario logueado");  // Si no hay usuario logueado
-      setLoading(false);  // Terminar el estado de carga
+  const handlePayFine = async () => {
+    if (!selectedFine) {return;}
+
+    try {
+      await payFine(selectedFine.idmulta);
+      setShowPayDialog(false);
+      setSelectedFine(null);
+      refetch();
+    } catch (error) {
+      // El error se maneja en el hook
     }
-  }, []);
+  };
+
+  const openPayDialog = (fine) => {
+    setSelectedFine(fine);
+    setShowPayDialog(true);
+    resetPay();
+  };
+
+  const closePayDialog = () => {
+    setShowPayDialog(false);
+    setSelectedFine(null);
+    resetPay();
+  };
+
+  const fines = finesData?.fines || [];
+
+  const columns = [
+    { key: 'idmulta', label: 'ID Multa' },
+    { key: 'saldopagar', label: 'Monto', render: (value) => `$${value}` },
+    { key: 'fechamulta', label: 'Fecha de Multa' },
+    { key: 'estado', label: 'Estado', render: (value) => (
+      <span className={`status ${value}`}>{value}</span>
+    )},
+    { 
+      key: 'actions', 
+      label: 'Acciones',
+      render: (_, fine) => (
+        <button 
+          className="btn btn-success btn-sm"
+          onClick={() => openPayDialog(fine)}
+          disabled={fine.estado === 'pagada'}
+        >
+          {fine.estado === 'pagada' ? 'Pagada' : 'Pagar'}
+        </button>
+      )
+    }
+  ];
 
   return (
-    <div>
-      <h1>Multas Pendientes</h1>
+    <div className="multa-dashboard">
+      <h1>Multas</h1>
+      <p className="multa-description">Consulta y paga tus multas pendientes en la biblioteca.</p>
       
-      {/* Mostrar mensaje de carga */}
-      {loading && <p>Cargando...</p>}
+      <DataTable
+        columns={columns}
+        data={fines}
+        loading={loading}
+        error={error}
+        emptyMessage="No hay multas para este usuario."
+        className="multa-table"
+      />
 
-      {/* Mostrar mensaje de error */}
-      {error && !loading && <p style={{ color: 'red' }}>{error}</p>}
+      {/* Diálogo de confirmación para pagar */}
+      <ConfirmDialog
+        isOpen={showPayDialog}
+        title="Pagar Multa"
+        message={
+          selectedFine ? (
+            <div className="fine-details">
+              <p><strong>ID Multa:</strong> {selectedFine.idmulta}</p>
+              <p><strong>Monto:</strong> ${selectedFine.saldopagar}</p>
+              <p><strong>Fecha:</strong> {selectedFine.fechamulta}</p>
+              <p><strong>Estado:</strong> {selectedFine.estado}</p>
+              <div className="payment-warning">
+                <p>¿Estás seguro de que quieres pagar esta multa?</p>
+                <p>Esta acción no se puede deshacer.</p>
+              </div>
+            </div>
+          ) : ""
+        }
+        onConfirm={handlePayFine}
+        onCancel={closePayDialog}
+        confirmText={payLoading ? "Pagando..." : "Confirmar Pago"}
+        cancelText="Cancelar"
+        type="warning"
+        disabled={payLoading}
+      />
 
-      {/* Mostrar tabla si hay multas */}
-      {!loading && fines.length > 0 && (
-        <table border="1" cellPadding="10" style={{ width: "100%", textAlign: "left", borderCollapse: "collapse" }}>
-          <thead>
-            <tr>
-              <th>ID Multa</th>
-              <th>Saldo a Pagar</th>
-              <th>Fecha de Multa</th>
-              <th>Estado</th>
-            </tr>
-          </thead>
-          <tbody>
-            {fines.map((fine) => (
-              <tr key={fine.id_multa}>
-                <td>{fine.id_multa}</td>
-                <td>{fine.saldo_pagar}</td>
-                <td>{fine.fecha_multa}</td>
-                <td>{fine.estado}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      {payError && (
+        <div className="error-message">{payError}</div>
       )}
-
-      {/* Si no hay multas, mostrar un mensaje */}
-      {!loading && fines.length === 0 && !error && (
-        <p>No hay multas pendientes para este usuario.</p>
+      {paySuccess && (
+        <div className="success-message">Multa pagada exitosamente</div>
       )}
     </div>
   );

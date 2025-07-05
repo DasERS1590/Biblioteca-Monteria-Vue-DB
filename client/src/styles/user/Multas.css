@@ -1,0 +1,144 @@
+/* Estilos para Multas.jsx (User) - Modularizados y unificados con Libros/Préstamos/Reservas */
+
+.multa-dashboard {
+  padding: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.multa-dashboard h1 {
+  color: #1f2937;
+  font-size: 2rem;
+  margin-bottom: 10px;
+}
+
+.multa-description {
+  color: #6b7280;
+  font-size: 1.1rem;
+  margin-bottom: 30px;
+}
+
+.multa-table {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+}
+
+/* Estados de multa */
+.status {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.status.pendiente {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.status.pagada {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.status.vencida {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+/* Botones */
+.btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-decoration: none;
+  display: inline-block;
+  text-align: center;
+}
+
+.btn-sm {
+  padding: 6px 12px;
+  font-size: 0.8rem;
+}
+
+.btn-success {
+  background: #10b981;
+  color: white;
+}
+
+.btn-success:hover:not(:disabled) {
+  background: #059669;
+}
+
+.btn-success:disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
+}
+
+/* Detalles de la multa */
+.fine-details {
+  text-align: left;
+}
+
+.fine-details p {
+  margin: 8px 0;
+  color: #374151;
+}
+
+.fine-details strong {
+  color: #1f2937;
+}
+
+.payment-warning {
+  margin-top: 15px;
+  padding: 12px;
+  background: #fef3c7;
+  border: 1px solid #fde68a;
+  border-radius: 6px;
+}
+
+.payment-warning p {
+  margin: 5px 0;
+  color: #92400e;
+  font-size: 0.9rem;
+}
+
+/* Mensajes */
+.error-message {
+  background: #fee2e2;
+  border: 1px solid #fecaca;
+  color: #dc2626;
+  padding: 12px;
+  border-radius: 6px;
+  margin-top: 15px;
+  font-size: 0.9rem;
+}
+
+.success-message {
+  background: #dcfce7;
+  border: 1px solid #bbf7d0;
+  color: #166534;
+  padding: 12px;
+  border-radius: 6px;
+  margin-top: 15px;
+  font-size: 0.9rem;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .multa-dashboard h1 {
+    font-size: 1.5rem;
+  }
+  
+  .btn-sm {
+    width: 100%;
+  }
+} 
